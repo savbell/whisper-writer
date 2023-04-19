@@ -15,7 +15,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 Record audio from the microphone and transcribe it using the OpenAI API.
 Recording stops when the user stops speaking.
 """
-def record_and_transcribe(status_dict):
+def record_and_transcribe(status_queue):
     sample_rate = 16000
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
     buffer_duration = 300  # 300ms
@@ -62,7 +62,7 @@ def record_and_transcribe(status_dict):
 
         # Transcribe the temporary audio file using the OpenAI API
         with open(temp_audio_file.name, 'rb') as audio_file:
-            status_dict['status'] = 'transcribing'
+            status_queue.put(('transcribing', 'Transcribing...'))
             print('Transcribing audio file...')
             response = openai.Audio.transcribe('whisper-1', audio_file)
 
@@ -71,15 +71,11 @@ def record_and_transcribe(status_dict):
 
         result = response.get('text')
         print('Transcription:', result)
-
-        if result:
-            status_dict['status'] = 'idle'
-            status_dict['transcription'] = result.strip()
-        else:
-            status_dict['status'] = 'idle'
-            status_dict['transcription'] = ''
+        status_queue.put(('idle', ''))
+        
+        return result.strip() if result else ''
             
     except Exception as e:
         print(f"Error: {e}")
-        status_dict['status'] = 'error' 
+        status_queue.put(('error', 'Error'))
 

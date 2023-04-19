@@ -1,18 +1,16 @@
+import queue
 import tkinter as tk
 import threading
 from PIL import Image, ImageTk
 
 class StatusWindow(threading.Thread):
-    def __init__(self, status_dict):
+    def __init__(self, status_queue):
         threading.Thread.__init__(self)
-        self.status_dict = status_dict
-        self.window_created = threading.Event()
+        self.status_queue = status_queue
         
     def schedule_check(self, func):
-        self.window.after(100, func)
-
-    def wait(self):
-        self.window_created.wait()
+        if hasattr(self, 'window'):
+            self.window.after(100, func)
 
     def run(self):
         self.window = tk.Tk()
@@ -43,21 +41,24 @@ class StatusWindow(threading.Thread):
         self.icon_label = tk.Label(self.window, image=self.microphone_photo, bg="#B0C4DE")
         self.icon_label.place(x=100, y=25, anchor="center")
 
-        self.check_status()
-        self.window_created.set()
+        self.process_queue()
         self.window.mainloop()
 
-    def check_status(self):
-        status = self.status_dict['status']
-
-        if status in ('idle', 'error'):
-            self.window.quit()
-            self.window.destroy()
-        else:
-            if status == 'recording':
-                self.icon_label.config(image=self.microphone_photo)
-            elif status == 'transcribing':
-                self.icon_label.config(image=self.pencil_photo)
-
-            self.label.config(text=status.capitalize()+'...')
-            self.window.after(100, self.check_status)
+    def process_queue(self):
+        try:
+            update = self.status_queue.get_nowait()
+            if update == 'quit':
+                self.window.quit()
+                self.window.destroy()
+            else:
+                status, text = update
+                if status == 'recording':
+                    self.icon_label.config(image=self.microphone_photo)
+                elif status == 'transcribing':
+                    self.icon_label.config(image=self.pencil_photo)
+                elif status in ('idle', 'error'):
+                    self.window.after(100, self.window.destroy)
+                self.label.config(text=text)
+                self.window.after(100, self.process_queue)
+        except queue.Empty:
+            self.window.after(100, self.process_queue)
