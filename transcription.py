@@ -15,7 +15,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 Record audio from the microphone and transcribe it using the OpenAI API.
 Recording stops when the user stops speaking.
 """
-def record_and_transcribe(status_queue):
+def record_and_transcribe(status_queue, stop_recording_flag):
     sample_rate = 16000
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
     buffer_duration = 300  # 300ms
@@ -30,7 +30,7 @@ def record_and_transcribe(status_queue):
     try:
         with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=sample_rate * frame_duration // 1000,
                             callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
-            while True:
+            while not stop_recording_flag():
                 if len(buffer) < sample_rate * frame_duration // 1000:
                     continue
 
@@ -48,7 +48,10 @@ def record_and_transcribe(status_queue):
                     if num_silent_frames >= num_silence_frames:
                         break
 
-
+        if stop_recording_flag():
+            status_queue.put(('cancel', ''))
+            return ''
+        
         audio_data = np.array(recording, dtype=np.int16)
         print('Recording finished. Size:', audio_data.size)
         
