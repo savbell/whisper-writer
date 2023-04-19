@@ -1,4 +1,7 @@
 {
     "activation_key": "ctrl+alt+space",
-    "silence_duration": 700
+    "silence_duration": 900,
+    "remove_trailing_period": false,
+    "add_trailing_space": true,
+    "remove_capitalization": false
 }

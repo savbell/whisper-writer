@@ -10,6 +10,16 @@ from dotenv import load_dotenv
 load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+def process_transcription(transcription, config=None):
+    if config:
+        if config['remove_trailing_period'] and transcription.endswith('.'):
+            transcription = transcription[:-1]
+        if config['add_trailing_space']:
+            transcription += ' '
+        if config['remove_capitalization']:
+            transcription = transcription.lower()
+    
+    return transcription
 
 """
 Record audio from the microphone and transcribe it using the OpenAI API.
@@ -19,7 +29,7 @@ def record_and_transcribe(status_queue, stop_recording_flag, config=None):
     sample_rate = 16000
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
     buffer_duration = 300  # 300ms
-    silence_duration = config['silence_duration'] if config else 700  # 700ms
+    silence_duration = config['silence_duration'] if config else 900  # 900ms
 
     vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
     buffer = []
@@ -76,7 +86,7 @@ def record_and_transcribe(status_queue, stop_recording_flag, config=None):
         print('Transcription:', result)
         status_queue.put(('idle', ''))
         
-        return result.strip() if result else ''
+        return process_transcription(result.strip(), config) if result else ''
             
     except Exception as e:
         print(f'Error: {e}')

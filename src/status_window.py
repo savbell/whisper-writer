@@ -1,3 +1,4 @@
+import gc
 import os
 import queue
 import tkinter as tk
@@ -64,6 +65,7 @@ class StatusWindow(threading.Thread):
             if status in ('idle', 'error', 'cancel'):
                 self.window.quit()
                 self.window.destroy()
+                gc.collect()
             elif status == 'recording' and hasattr(self, 'window'):
                 self.icon_label.config(image=self.microphone_photo)
                 self.label.config(text=text)
