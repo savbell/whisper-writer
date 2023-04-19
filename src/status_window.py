@@ -1,3 +1,4 @@
+import os
 import queue
 import tkinter as tk
 import threading
@@ -32,27 +33,27 @@ class StatusWindow(threading.Thread):
         self.window.geometry(f'250x65+{x_coordinate}+{y_coordinate}')
         
         # Add the text
-        title_label = tk.Label(self.window, text="WhisperWriter", font=("Indie Flower", 12, "bold"), bg="#B0C4DE")
-        title_label.place(x=125, y=10, anchor="center")
-        self.label = tk.Label(self.window, text="", font=("Indie Flower", 14), bg="#B0C4DE")
-        self.label.place(x=140, y=40, anchor="center")
+        title_label = tk.Label(self.window, text='WhisperWriter', font=('Indie Flower', 12, 'bold'), bg='#B0C4DE')
+        title_label.place(x=125, y=10, anchor='center')
+        self.label = tk.Label(self.window, text='', font=('Indie Flower', 14), bg='#B0C4DE')
+        self.label.place(x=140, y=40, anchor='center')
 
         # Load and display the icons
-        self.microphone_image = Image.open('microphone.png')
+        self.microphone_image = Image.open(os.path.join('assets', 'microphone.png'))
         self.microphone_image = self.microphone_image.resize((32, 32), Image.ANTIALIAS)
         self.microphone_photo = ImageTk.PhotoImage(self.microphone_image)
         
-        self.pencil_image = Image.open('pencil.png')
+        self.pencil_image = Image.open(os.path.join('assets', 'pencil.png'))
         self.pencil_image = self.pencil_image.resize((32, 32), Image.ANTIALIAS)
         self.pencil_photo = ImageTk.PhotoImage(self.pencil_image)
 
-        self.icon_label = tk.Label(self.window, image=self.microphone_photo, bg="#B0C4DE")
-        self.icon_label.place(x=50, y=40, anchor="center")
+        self.icon_label = tk.Label(self.window, image=self.microphone_photo, bg='#B0C4DE')
+        self.icon_label.place(x=50, y=40, anchor='center')
 
         # Close button
-        self.close_button = tk.Button(self.window, text="X", font=("Arial", 12, "bold"), bg="#B0C4DE", 
+        self.close_button = tk.Button(self.window, text='X', font=('Arial', 12, 'bold'), bg='#B0C4DE', 
                                       command=self.handle_close_button, bd=0, highlightthickness=0, relief='flat')
-        self.close_button.place(x=235, y=15, anchor="center")
+        self.close_button.place(x=235, y=15, anchor='center')
 
         self.process_queue()
         self.window.mainloop()
@@ -66,11 +67,11 @@ class StatusWindow(threading.Thread):
             elif status == 'recording' and hasattr(self, 'window'):
                 self.icon_label.config(image=self.microphone_photo)
                 self.label.config(text=text)
-                self.close_button.config(state="normal")
+                self.close_button.config(state='normal')
             elif status == 'transcribing' and hasattr(self, 'window'):
                 self.icon_label.config(image=self.pencil_photo)
                 self.label.config(text=text)
-                self.close_button.config(state="disabled")
+                self.close_button.config(state='disabled')
             self.window.after(100, self.process_queue)
         except queue.Empty:
             self.window.after(100, self.process_queue)

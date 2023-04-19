@@ -1,3 +1,5 @@
+import json
+import os
 import queue
 import threading
 import keyboard
@@ -17,6 +19,9 @@ class ResultThread(threading.Thread):
     def stop(self):
         self.stop_recording = True
 
+with open(os.path.join('src', 'config.json'), 'r') as config_file:
+    config = json.load(config_file)
+
 status_queue = queue.Queue()
 
 def clear_status_queue():
@@ -31,7 +36,7 @@ def on_shortcut():
     clear_status_queue()
 
     status_queue.put(('recording', 'Recording...'))
-    recording_thread = ResultThread(target=record_and_transcribe, args=(status_queue,))
+    recording_thread = ResultThread(target=record_and_transcribe, args=(status_queue,), kwargs={'config': config})
     status_window = StatusWindow(status_queue)
     status_window.recording_thread = recording_thread
     status_window.start()
@@ -48,6 +53,6 @@ def on_shortcut():
         pyautogui.write(transcribed_text)
 
 
-keyboard.add_hotkey('ctrl+alt+space', on_shortcut)  # You can choose your preferred key combination
+keyboard.add_hotkey(config['activation_key'], on_shortcut)
 print('Script activated. Press Ctrl+Alt+Space to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
 keyboard.wait()  # Keep the script running to listen for the shortcut

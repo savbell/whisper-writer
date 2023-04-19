@@ -48,11 +48,11 @@ OPENAI_API_KEY=<your_openai_key_here>
 
 5. **Run the Python code:**
 ```
-python main.py
+python run.py
 ```
 
 ## How to Use
-WhisperWriter runs in the background and waits for a keyboard shortcut to be pressed. By default, the shortcut is `ctrl+alt+space`, but you can change it to any other combination you prefer by modifying the `keyboard.add_hotkey` line in `main.py`.
+WhisperWriter runs in the background and waits for a keyboard shortcut to be pressed. By default, the shortcut is `ctrl+alt+space`, but you can change it to any other combination you prefer by modifying the `activation_key` line in `src\config.json`.
 
 When the shortcut is pressed, WhisperWriter starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, the app displays a small status window on your screen showing the current status of the transcription process.
 

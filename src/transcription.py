@@ -15,11 +15,11 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 Record audio from the microphone and transcribe it using the OpenAI API.
 Recording stops when the user stops speaking.
 """
-def record_and_transcribe(status_queue, stop_recording_flag):
+def record_and_transcribe(status_queue, stop_recording_flag, config=None):
     sample_rate = 16000
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
     buffer_duration = 300  # 300ms
-    silence_duration = 700  # 700ms
+    silence_duration = config['silence_duration'] if config else 700  # 700ms
 
     vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
     buffer = []
@@ -79,6 +79,6 @@ def record_and_transcribe(status_queue, stop_recording_flag):
         return result.strip() if result else ''
             
     except Exception as e:
-        print(f"Error: {e}")
+        print(f'Error: {e}')
         status_queue.put(('error', 'Error'))
 
