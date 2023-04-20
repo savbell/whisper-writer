@@ -1,4 +1,4 @@
-# WhisperWriter
+# 💬📝 WhisperWriter
 WhisperWriter is a small app that uses OpenAI's Whisper API to auto-transcribe recordings from a user's microphone. The app is written in Python and uses the `keyboard`, `pyautogui`, `sounddevice`, `webrtcvad`, `openai`, and `tkinter` libraries.
 
 ## Prerequisites
@@ -57,6 +57,32 @@ WhisperWriter runs in the background and waits for a keyboard shortcut to be pre
 When the shortcut is pressed, WhisperWriter starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, the app displays a small status window on your screen showing the current status of the transcription process.
 
 Once the transcription is complete, the transcribed text will be automatically written to the active window.
+
+## Configuration Options
+
+WhisperWriter uses a configuration file to customize its behaviour. To set up the configuration, modify the `src\config.json` file:
+
+```json
+{
+    "activation_key": "ctrl+alt+space",
+    "silence_duration": 900,
+    "writing_key_press_delay": 0.008,
+    "remove_trailing_period": true,
+    "add_trailing_space": false,
+    "remove_capitalization": false,
+    "print_to_terminal": true
+}
+```
+
+- `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: "ctrl+alt+space")
+- `silence_duration`: The duration in milliseconds to wait for silence before stopping the recording. (Default: 900)
+- `writing_key_press_delay`: The delay in seconds between each key press when writing the transcribed text. (Default: 0.008)
+- `remove_trailing_period`: Set to true to remove the trailing period from the transcribed text. (Default: false)
+- `add_trailing_space`: Set to true to add a trailing space to the transcribed text. (Default: true)
+- `remove_capitalization`: Set to true to convert the transcribed text to lowercase. (Default: false)
+- `print_to_terminal`: Set to true to print the script status and transcribed text to the terminal. (Default: true)
+
+If any of the configuration options are invalid or not provided, the program will use the default values.
 
 ## License
 This project is licensed under the GNU General Public License. See the [LICENSE](LICENSE) file for details.

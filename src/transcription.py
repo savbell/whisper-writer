@@ -38,6 +38,7 @@ def record_and_transcribe(status_queue, stop_recording_flag, config=None):
     num_buffer_frames = buffer_duration // frame_duration
     num_silence_frames = silence_duration // frame_duration
     try:
+        print('Recording...') if config['print_to_terminal'] else ''
         with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=sample_rate * frame_duration // 1000,
                             callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
             while not stop_recording_flag():
@@ -63,7 +64,7 @@ def record_and_transcribe(status_queue, stop_recording_flag, config=None):
             return ''
         
         audio_data = np.array(recording, dtype=np.int16)
-        print('Recording finished. Size:', audio_data.size)
+        print('Recording finished. Size:', audio_data.size) if config['print_to_terminal'] else ''
         
         # Save the recorded audio as a temporary WAV file on disk
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
@@ -76,14 +77,14 @@ def record_and_transcribe(status_queue, stop_recording_flag, config=None):
         # Transcribe the temporary audio file using the OpenAI API
         with open(temp_audio_file.name, 'rb') as audio_file:
             status_queue.put(('transcribing', 'Transcribing...'))
-            print('Transcribing audio file...')
+            print('Transcribing audio file...') if config['print_to_terminal'] else ''
             response = openai.Audio.transcribe('whisper-1', audio_file)
 
         # Remove the temporary audio file
         os.remove(temp_audio_file.name)
 
         result = response.get('text')
-        print('Transcription:', result)
+        print('Transcription:', result) if config['print_to_terminal'] else ''
         status_queue.put(('idle', ''))
         
         return process_transcription(result.strip(), config) if result else ''

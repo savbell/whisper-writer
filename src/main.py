@@ -19,10 +19,26 @@ class ResultThread(threading.Thread):
     def stop(self):
         self.stop_recording = True
 
-with open(os.path.join('src', 'config.json'), 'r') as config_file:
-    config = json.load(config_file)
+def load_config_with_defaults():
+    default_config = {
+        "activation_key": "ctrl+alt+space",
+        "silence_duration": 900,
+        "writing_key_press_delay": 0.008,
+        "remove_trailing_period": True,
+        "add_trailing_space": False,
+        "remove_capitalization": False,
+        "print_to_terminal": True,
+    }
 
-status_queue = queue.Queue()
+    config_path = os.path.join('src', 'config.json')
+    if os.path.isfile(config_path):
+        with open(config_path, 'r') as config_file:
+            user_config = json.load(config_file)
+            for key, value in user_config.items():
+                if key in default_config and value is not None:
+                    default_config[key] = value
+
+    return default_config
 
 def clear_status_queue():
     while not status_queue.empty():
@@ -50,9 +66,14 @@ def on_shortcut():
     transcribed_text = recording_thread.result
 
     if transcribed_text:
-        pyautogui.write(transcribed_text)
+        pyautogui.write(transcribed_text, interval=config['writing_key_press_delay'])
 
+def format_keystrokes(key_string):
+    return '+'.join(word.capitalize() for word in key_string.split('+'))
+
+config = load_config_with_defaults()
+status_queue = queue.Queue()
 
 keyboard.add_hotkey(config['activation_key'], on_shortcut)
-print('Script activated. Press Ctrl+Alt+Space to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
+print(f'Script activated. Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
 keyboard.wait()  # Keep the script running to listen for the shortcut

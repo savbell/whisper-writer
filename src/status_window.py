@@ -29,7 +29,7 @@ class StatusWindow(threading.Thread):
         # Calculate the position for the bottom center of the screen
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
-        x_coordinate = int((screen_width - 200) / 2)
+        x_coordinate = int((screen_width - 250) / 2)
         y_coordinate = int(screen_height - 100 - 20)  # 20 pixels above the taskbar
         self.window.geometry(f'250x65+{x_coordinate}+{y_coordinate}')
         
