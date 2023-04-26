@@ -11,13 +11,13 @@ class ResultThread(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(ResultThread, self).__init__(*args, **kwargs)
         self.result = None
-        self.stop_recording = False
+        self.stop_transcription = False
 
     def run(self):
-        self.result = self._target(*self._args, stop_recording_flag=lambda: self.stop_recording, **self._kwargs)
+        self.result = self._target(*self._args, cancel_flag=lambda: self.stop_transcription, **self._kwargs)
         
     def stop(self):
-        self.stop_recording = True
+        self.stop_transcription = True
 
 def load_config_with_defaults():
     default_config = {

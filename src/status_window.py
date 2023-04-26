@@ -69,11 +69,9 @@ class StatusWindow(threading.Thread):
             elif status == 'recording' and hasattr(self, 'window'):
                 self.icon_label.config(image=self.microphone_photo)
                 self.label.config(text=text)
-                self.close_button.config(state='normal')
             elif status == 'transcribing' and hasattr(self, 'window'):
                 self.icon_label.config(image=self.pencil_photo)
                 self.label.config(text=text)
-                self.close_button.config(state='disabled')
             self.window.after(100, self.process_queue)
         except queue.Empty:
             self.window.after(100, self.process_queue)
