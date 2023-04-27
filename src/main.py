@@ -21,6 +21,21 @@ class ResultThread(threading.Thread):
 
 def load_config_with_defaults():
     default_config = {
+        "use_api": True,
+        "api_options": {
+            "model": "whisper-1",
+            "language": "en",
+            "temperature": 0.0,
+            "initial_prompt": None
+        },
+        "local_model_options": {
+            "model": "base",
+            "language": "en",
+            "temperature": 0.0,
+            "initial_prompt": None,
+            "condition_on_previous_text": True,
+            "verbose": False
+        },
         "activation_key": "ctrl+alt+space",
         "silence_duration": 900,
         "writing_key_press_delay": 0.008,

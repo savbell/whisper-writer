@@ -1,14 +1,16 @@
+import numpy as np
+import openai
 import os
+import sounddevice as sd
 import tempfile
 import wave
-import numpy as np
-import sounddevice as sd
 import webrtcvad
-import openai
+import whisper
 from dotenv import load_dotenv
 
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+
+if load_dotenv():
+    openai.api_key = os.getenv('OPENAI_API_KEY')
 
 def process_transcription(transcription, config=None):
     if config:
@@ -74,11 +76,29 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
                 wf.setframerate(sample_rate)
                 wf.writeframes(audio_data.tobytes())
 
-        # Transcribe the temporary audio file using the OpenAI API
-        with open(temp_audio_file.name, 'rb') as audio_file:
-            status_queue.put(('transcribing', 'Transcribing...'))
-            print('Transcribing audio file...') if config['print_to_terminal'] else ''
-            response = openai.Audio.transcribe('whisper-1', audio_file)
+        status_queue.put(('transcribing', 'Transcribing...'))
+        print('Transcribing audio file...') if config['print_to_terminal'] else ''
+        
+        # If configured, transcribe the temporary audio file using the OpenAI API
+        if config['use_api']:
+            api_options = config['api_options']
+            with open(temp_audio_file.name, 'rb') as audio_file:
+                response = openai.Audio.transcribe(model=api_options['model'], 
+                                                   file=audio_file,
+                                                   language=api_options['language'],
+                                                   prompt=api_options['initial_prompt'],
+                                                   temperature=api_options['temperature'],)
+        # Otherwise, transcribe the temporary audio file using a local model
+        elif not config['use_api']:
+            model_options = config['local_model_options']
+            model = whisper.load_model(model_options['model'])
+            response = model.transcribe(audio=temp_audio_file.name,
+                                        language=model_options['language'],
+                                        verbose=model_options['verbose'],
+                                        initial_prompt=model_options['initial_prompt'],
+                                        condition_on_previous_text=model_options['condition_on_previous_text'],
+                                        temperature=model_options['temperature'],)
+        
 
         # Remove the temporary audio file
         os.remove(temp_audio_file.name)
