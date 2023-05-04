@@ -1,4 +1,4 @@
-# 💬📝 WhisperWriter
+# <img src="./assets/ww-logo.png" alt="WhisperWriter icon" width="25" height="25"> WhisperWriter
 WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone.
 
 The transcription can either be done locally through the [Whisper Python package](https://pypi.org/project/openai-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use the API, but you can change this by modifying the `src\config.json` file. If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file. If you choose to transcribe using a local model, you will need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and potentially [Rust](https://www.rust-lang.org/) as well.
@@ -93,13 +93,13 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     "use_api": true,
     "api_options": {
         "model": "whisper-1",
-        "language": "en",
+        "language": null,
         "temperature": 0.0,
         "initial_prompt": null
     },
     "local_model_options": {
         "model": "base",
-        "language": "en",
+        "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
@@ -118,12 +118,12 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `use_api`: Set to true to use the OpenAI API for transcription. Set to false to use a local Whisper model. (Default: true)
 - `api_options`: Contains options for the OpenAI API. See the [API reference](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more details.
   - `model`: The model to use for transcription. Currently only "whisper-1" is available. (Default: "whisper-1")
-  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: "en")
+  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: null)
   - `temperature`: Controls the randomness of the transcription output. Lower values (e.g., 0.0) make the output more focused and deterministic. (Default: 0.0)
   - `initial_prompt`: A string used as an initial prompt to condition the transcription. Set to null for no initial prompt. (Default: null)
 - `local_model_options`: Contains options for the local Whisper model. See the [function definition](https://github.com/openai/whisper/blob/main/whisper/transcribe.py#L52-L108) for more details.
   - `model`: The model to use for transcription. See [available models and languages](https://github.com/openai/whisper#available-models-and-languages). (Default: "base")
-  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: "en")
+  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: null)
   - `temperature`: Controls the randomness of the transcription output. Lower values (e.g., 0.0) make the output more focused and deterministic. (Default: 0.0)
   - `initial_prompt`: A string used as an initial prompt to condition the transcription. Set to null for no initial prompt. (Default: null)
   - `conditin_on_previous_text`: Set to true to use the previously transcribed text as a prompt for the next transcription request. (Default: true)

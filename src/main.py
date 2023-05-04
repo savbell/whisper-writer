@@ -24,13 +24,13 @@ def load_config_with_defaults():
         "use_api": True,
         "api_options": {
             "model": "whisper-1",
-            "language": "en",
+            "language": None,
             "temperature": 0.0,
             "initial_prompt": None
         },
         "local_model_options": {
             "model": "base",
-            "language": "en",
+            "language": None,
             "temperature": 0.0,
             "initial_prompt": None,
             "condition_on_previous_text": True,

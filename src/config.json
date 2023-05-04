@@ -2,13 +2,13 @@
     "use_api": true,
     "api_options": {
         "model": "whisper-1",
-        "language": "en",
+        "language": null,
         "temperature": 0.0,
         "initial_prompt": null
     },
     "local_model_options": {
         "model": "base",
-        "language": "en",
+        "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
