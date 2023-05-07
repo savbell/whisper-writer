@@ -30,6 +30,7 @@ def load_config_with_defaults():
         },
         "local_model_options": {
             "model": "base",
+            "device": None,
             "language": None,
             "temperature": 0.0,
             "initial_prompt": None,
@@ -91,4 +92,9 @@ status_queue = queue.Queue()
 
 keyboard.add_hotkey(config['activation_key'], on_shortcut)
 print(f'Script activated. Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
-keyboard.wait()  # Keep the script running to listen for the shortcut
+try:
+    keyboard.wait()  # Keep the script running to listen for the shortcut
+except KeyboardInterrupt:
+    print('\nExiting the script...')
+    os.system('exit')
+

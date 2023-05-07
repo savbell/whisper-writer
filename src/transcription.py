@@ -91,7 +91,8 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
         # Otherwise, transcribe the temporary audio file using a local model
         elif not config['use_api']:
             model_options = config['local_model_options']
-            model = whisper.load_model(model_options['model'])
+            model = whisper.load_model(name=model_options['model'],
+                                       device=model_options['device'])
             response = model.transcribe(audio=temp_audio_file.name,
                                         language=model_options['language'],
                                         verbose=model_options['verbose'],

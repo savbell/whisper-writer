@@ -8,6 +8,7 @@
     },
     "local_model_options": {
         "model": "base",
+        "device": null,
         "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
