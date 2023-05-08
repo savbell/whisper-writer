@@ -1,12 +1,16 @@
 # <img src="./assets/ww-logo.png" alt="WhisperWriter icon" width="25" height="25"> WhisperWriter
+
+<p align="center">
+    <img src="./assets/ww-demo-image.gif" alt="WhisperWriter demo gif">
+</p>
+
 WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone.
+
+Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+alt+space` by default, but this can be changed in the [Configuration Options](#configuration-options)). When the shortcut is pressed, the app starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, a small status window is displayed that shows the current stage of the transcription process. Once the transcription is complete, the transcribed text will be automatically written to the active window.
 
 The transcription can either be done locally through the [Whisper Python package](https://pypi.org/project/openai-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use the API, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file. If you choose to transcribe using a local model, you will need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and potentially [Rust](https://www.rust-lang.org/) as well.
 
-## How to Use
-WhisperWriter runs in the background and waits for a keyboard shortcut to be pressed. By default, the shortcut is `ctrl+alt+space`, but you can change this by modifying the `activation_key` line in `src\config.json`. See the full [Configuration Options](#configuration-options).
-
-When the shortcut is pressed, WhisperWriter starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, the app displays a small status window on your screen showing the current status of the transcription process. Once the transcription is complete, the transcribed text will be automatically written to the active window.
+**Fun fact:** Almost the entirety of this project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write all the prompts as well!
 
 ## Prerequisites
 Before you can run this app, you'll need to have the following software installed:
