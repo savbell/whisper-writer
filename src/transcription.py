@@ -1,3 +1,4 @@
+import traceback
 import numpy as np
 import openai
 import os
@@ -95,7 +96,7 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
                                        device=model_options['device'])
             response = model.transcribe(audio=temp_audio_file.name,
                                         language=model_options['language'],
-                                        verbose=model_options['verbose'],
+                                        verbose=None if not config['print_to_terminal'] else model_options['verbose'],
                                         initial_prompt=model_options['initial_prompt'],
                                         condition_on_previous_text=model_options['condition_on_previous_text'],
                                         temperature=model_options['temperature'],)
@@ -115,6 +116,6 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
         return process_transcription(result.strip(), config) if result else ''
             
     except Exception as e:
-        print(f'Error: {e}')
+        traceback.print_exc()
         status_queue.put(('error', 'Error'))
 

@@ -1,5 +1,7 @@
 # <img src="./assets/ww-logo.png" alt="WhisperWriter icon" width="25" height="25"> WhisperWriter
 
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+
 <p align="center">
     <img src="./assets/ww-demo-image.gif" alt="WhisperWriter demo gif">
 </p>
@@ -10,14 +12,14 @@ Once started, the script runs in the background and waits for a keyboard shortcu
 
 The transcription can either be done locally through the [Whisper Python package](https://pypi.org/project/openai-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use the API, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file. If you choose to transcribe using a local model, you will need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and potentially [Rust](https://www.rust-lang.org/) as well.
 
-**Fun fact:** Almost the entirety of this project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write all the prompts as well!
+**Fun fact:** Almost the entirety of this project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
 
 ## Prerequisites
 Before you can run this app, you'll need to have the following software installed:
 
 - Git: [https://git-scm.com/downloads](https://git-scm.com/downloads)
-- Python 3.10: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-  - The [Whisper Python package](https://github.com/openai/whisper) is only compatible with Python versions >=3.7, <3.11. **Update:** 3.11 compatability seems to be coming in the next release, so this may be updated soon.
+- Python 3.11: [https://www.python.org/downloads/](https://www.python.org/downloads/)
+  - The [Whisper Python package](https://github.com/openai/whisper) is only compatible with Python versions >=3.7.
 
 If you are running a local model, you will also need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and add it to your PATH:
 ```
@@ -48,7 +50,6 @@ git clone https://github.com/savbell/whisper-writer
 cd whisper-writer
 ```
 
-
 ### 2. Create a virtual environment and activate it:
 
 ```
@@ -67,7 +68,20 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. If using the OpenAI API, configure the environment variables:
+### 4. Switch between a local model and the OpenAI API:
+To switch between running Whisper locally and using the OpenAI API, you need to modify the `src\config.json` file:
+
+- If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to set up your OpenAI API key in the next step.
+- If you prefer using a local Whisper model, set `"use_api"` to `false`. You may also want to change the device that the model uses; see the [Model Options](#model-options). Make sure you followed the [prerequisite steps](#prerequisites) and installed ffmpeg and Rust if necessary.
+
+```json
+{
+    "use_api": true,    // Change this value to false to run Whisper locally
+    ...
+}
+```
+
+### 5. If using the OpenAI API, configure the environment variables:
 
 Copy the ".env.example" file to a new file named ".env":
 ```
@@ -82,7 +96,7 @@ Open the ".env" file and add in your OpenAI API key:
 OPENAI_API_KEY=<your_openai_key_here>
 ```
 
-### 5. Run the Python code:
+### 6. Run the Python code:
 
 ```
 python run.py
@@ -144,6 +158,28 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `print_to_terminal`: Set to `true` to print the script status and transcribed text to the terminal. (Default: `true`)
 
 If any of the configuration options are invalid or not provided, the program will use the default values.
+
+## Versioning
+
+We use [Semantic Versioning](https://semver.org/) for this project. For the available versions, see the [tags on this repository](https://github.com/savbell/whisper-writer/tags). 
+
+The version format is `MAJOR.MINOR.PATCH`, where: 
+
+- `MAJOR` versions indicate potentially incompatible changes,
+- `MINOR` versions indicate the addition of functionality in a backwards-compatible manner, and
+- `PATCH` versions indicate backwards-compatible bug fixes.
+
+For detailed changes, please check the [CHANGELOG.md](CHANGELOG.md) file in this repository.
+
+## Known Issues
+
+As of version 1.0.0, the following issues are known:
+
+- **Numba Deprecation Warning**: When running the Whisper model locally, a [numba depreciation warning](https://numba.readthedocs.io/en/stable/reference/deprecation.html#deprecation-of-object-mode-fall-back-behaviour-when-using-jit) is displayed. This is an issue with the Whisper Python package and will be fixed in a future release. The warning can be safely ignored.
+
+- **FP16 Not Supported on CPU Warning**: A warning may show if you are running the local model on your CPU rather than a GPU using CUDA. This can be safely ignored.
+
+Please note that this is not an exhaustive list and new issues can emerge over time. You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem not listed here, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
 ## License
 This project is licensed under the GNU General Public License. See the [LICENSE](LICENSE) file for details.
