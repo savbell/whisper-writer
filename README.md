@@ -74,7 +74,7 @@ To switch between running Whisper locally and using the OpenAI API, you need to 
 - If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to set up your OpenAI API key in the next step.
 - If you prefer using a local Whisper model, set `"use_api"` to `false`. You may also want to change the device that the model uses; see the [Model Options](#model-options). Make sure you followed the [prerequisite steps](#prerequisites) and installed ffmpeg and Rust if necessary.
 
-```json
+```
 {
     "use_api": true,    // Change this value to false to run Whisper locally
     ...

@@ -21,29 +21,29 @@ class ResultThread(threading.Thread):
 
 def load_config_with_defaults():
     default_config = {
-        "use_api": True,
-        "api_options": {
-            "model": "whisper-1",
-            "language": None,
-            "temperature": 0.0,
-            "initial_prompt": None
+        'use_api': True,
+        'api_options': {
+            'model': 'whisper-1',
+            'language': None,
+            'temperature': 0.0,
+            'initial_prompt': None
         },
-        "local_model_options": {
-            "model": "base",
-            "device": None,
-            "language": None,
-            "temperature": 0.0,
-            "initial_prompt": None,
-            "condition_on_previous_text": True,
-            "verbose": False
+        'local_model_options': {
+            'model': 'base',
+            'device': None,
+            'language': None,
+            'temperature': 0.0,
+            'initial_prompt': None,
+            'condition_on_previous_text': True,
+            'verbose': False
         },
-        "activation_key": "ctrl+alt+space",
-        "silence_duration": 900,
-        "writing_key_press_delay": 0.008,
-        "remove_trailing_period": True,
-        "add_trailing_space": False,
-        "remove_capitalization": False,
-        "print_to_terminal": True,
+        'activation_key': 'ctrl+alt+space',
+        'silence_duration': 900,
+        'writing_key_press_delay': 0.008,
+        'remove_trailing_period': True,
+        'add_trailing_space': False,
+        'remove_capitalization': False,
+        'print_to_terminal': True,
     }
 
     config_path = os.path.join('src', 'config.json')
@@ -87,11 +87,18 @@ def on_shortcut():
 def format_keystrokes(key_string):
     return '+'.join(word.capitalize() for word in key_string.split('+'))
 
+
+
+# Main script
+
 config = load_config_with_defaults()
+method = 'OpenAI\'s API' if config['use_api'] else 'a local model'
 status_queue = queue.Queue()
 
 keyboard.add_hotkey(config['activation_key'], on_shortcut)
-print(f'Script activated. Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
+
+print(f'Script activated. Whisper is set to run using {method}. To change this, modify the "use_api" value in the src\\config.json file.')
+print(f'Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
 try:
     keyboard.wait()  # Keep the script running to listen for the shortcut
 except KeyboardInterrupt:
