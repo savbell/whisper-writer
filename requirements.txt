@@ -47,5 +47,6 @@ torch==2.0.1
 tqdm==4.65.0
 typing_extensions==4.6.2
 urllib3==2.0.2
-webrtcvad==2.0.10
+# webrtcvad==2.0.10
+webrtcvad-wheels== 2.0.11.post1
 yarl==1.9.2
