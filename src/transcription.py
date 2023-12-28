@@ -29,7 +29,8 @@ Record audio from the microphone and transcribe it using the OpenAI API.
 Recording stops when the user stops speaking.
 """
 def record_and_transcribe(status_queue, cancel_flag, config=None):
-    sample_rate = 16000
+    sound_device = config['sound_device'] if config else None
+    sample_rate = config['sample_rate'] if config else 16000  # 16kHz, supported values: 8kHz, 16kHz, 32kHz, 48kHz, 96kHz
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
     buffer_duration = 300  # 300ms
     silence_duration = config['silence_duration'] if config else 900  # 900ms
@@ -43,7 +44,7 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
     try:
         print('Recording...') if config['print_to_terminal'] else ''
         with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=sample_rate * frame_duration // 1000,
-                            callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
+                            device=sound_device, callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
             while not cancel_flag():
                 if len(buffer) < sample_rate * frame_duration // 1000:
                     continue

@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Message to identify whether Whisper was being called using the API or running locally.
+- New message to identify whether Whisper was being called using the API or running locally.
+- New configuration options to choose which sound device and sample rate to use.
+- Contributing section added to README.md.
+
+### Changed
+- Changed from using `pyautogui` to `pynput` (#10).
+- Changed from using `webrtcvad` to `webrtcvad-wheels` (#17).
+- Updated Whisper package to version 20231117.
+- Changed default activation key combo from `ctrl+alt+space` to `ctrl+shift+space`.
 
 ## [1.0.0] - 2023-05-29
 ### Added

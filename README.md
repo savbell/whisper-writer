@@ -8,7 +8,7 @@
 
 WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone.
 
-Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+alt+space` by default, but this can be changed in the [Configuration Options](#configuration-options)). When the shortcut is pressed, the app starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, a small status window is displayed that shows the current stage of the transcription process. Once the transcription is complete, the transcribed text will be automatically written to the active window.
+Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+shift+space` by default, but this can be changed in the [Configuration Options](#configuration-options)). When the shortcut is pressed, the app starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, a small status window is displayed that shows the current stage of the transcription process. Once the transcription is complete, the transcribed text will be automatically written to the active window.
 
 The transcription can either be done locally through the [Whisper Python package](https://pypi.org/project/openai-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use the API, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file. If you choose to transcribe using a local model, you will need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and potentially [Rust](https://www.rust-lang.org/) as well.
 
@@ -18,8 +18,7 @@ The transcription can either be done locally through the [Whisper Python package
 Before you can run this app, you'll need to have the following software installed:
 
 - Git: [https://git-scm.com/downloads](https://git-scm.com/downloads)
-- Python 3.11: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-  - The [Whisper Python package](https://github.com/openai/whisper) is only compatible with Python versions >=3.7.
+- Python `3.11`: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 
 If you are running a local model, you will also need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and add it to your PATH:
 ```
@@ -124,7 +123,9 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
         "condition_on_previous_text": true,
         "verbose": false
     },
-    "activation_key": "ctrl+alt+space",
+    "activation_key": "ctrl+shift+space",
+    "sound_device": null,
+    "sample_rate": 16000,
     "silence_duration": 900,
     "writing_key_press_delay": 0.005,
     "remove_trailing_period": false,
@@ -149,7 +150,9 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
   - `conditin_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
   - `verbose`: Set to `true` for more detailed transcription output. (Default: `false`)
 ### Customization Options
-- `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: `"ctrl+alt+space"`)
+- `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: `"ctrl+shift+space"`)
+- `sound_device`: The name of the sound device to use for recording. Set to `null` to let the system automatically choose the default device. To find a device number, run `python -m sounddevice`. (Default: `null`)
+- `sample_rate`: The sample rate in Hz to use for recording. (Default: `16000`)
 - `silence_duration`: The duration in milliseconds to wait for silence before stopping the recording. (Default: `900`)
 - `writing_key_press_delay`: The delay in seconds between each key press when writing the transcribed text. (Default: `0.005`)
 - `remove_trailing_period`: Set to `true` to remove the trailing period from the transcribed text. (Default: `false`)
@@ -173,13 +176,16 @@ For detailed changes, please check the [CHANGELOG.md](CHANGELOG.md) file in this
 
 ## Known Issues
 
-As of version 1.0.0, the following issues are known:
-
-- **Numba Deprecation Warning**: When running the Whisper model locally, a [numba depreciation warning](https://numba.readthedocs.io/en/stable/reference/deprecation.html#deprecation-of-object-mode-fall-back-behaviour-when-using-jit) is displayed. This is an issue with the Whisper Python package and will be fixed in a future release. The warning can be safely ignored.
+As of the latest version, the following issues are known:
 
 - **FP16 Not Supported on CPU Warning**: A warning may show if you are running the local model on your CPU rather than a GPU using CUDA. This can be safely ignored.
 
 Please note that this is not an exhaustive list and new issues can emerge over time. You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem not listed here, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
 ## License
+
 This project is licensed under the GNU General Public License. See the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! I created this project for my own personal use and didn't expect it to get much attention, so I haven't put much effort into testing or making it easy for others to contribute. If you have ideas or suggestions, feel free to [open a pull request](https://github.com/savbell/whisper-writer/pulls) or [create a new issue](https://github.com/savbell/whisper-writer/issues/new). I'll do my best to review and respond as time allows.

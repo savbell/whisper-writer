@@ -15,7 +15,9 @@
         "condition_on_previous_text": true,
         "verbose": false
     },
-    "activation_key": "ctrl+alt+space",
+    "activation_key": "ctrl+shift+space",
+    "sound_device": null,
+    "sample_rate": 16000,
     "silence_duration": 900,
     "writing_key_press_delay": 0.005,
     "remove_trailing_period": false,

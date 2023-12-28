@@ -38,7 +38,9 @@ def load_config_with_defaults():
             'condition_on_previous_text': True,
             'verbose': False
         },
-        'activation_key': 'ctrl+alt+space',
+        'activation_key': 'ctrl+shift+space',
+        'sound_device': None,
+        'sample_rate': 16000,
         'silence_duration': 900,
         'writing_key_press_delay': 0.008,
         'remove_trailing_period': True,
