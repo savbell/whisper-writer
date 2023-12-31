@@ -111,7 +111,7 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
             return ''
 
         result = response.get('text')
-        print('Transcription:', result) if config['print_to_terminal'] else ''
+        print('Transcription:', result.strip()) if config['print_to_terminal'] else ''
         status_queue.put(('idle', ''))
         
         return process_transcription(result.strip(), config) if result else ''
