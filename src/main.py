@@ -5,7 +5,7 @@ import threading
 import time
 import keyboard
 from pynput.keyboard import Controller
-from transcription import record_and_transcribe
+from transcription import create_local_model, record_and_transcribe
 from status_window import StatusWindow
 
 class ResultThread(threading.Thread):
@@ -32,11 +32,12 @@ def load_config_with_defaults():
         'local_model_options': {
             'model': 'base',
             'device': 'auto',
+            'compute_type': 'auto',
             'language': None,
             'temperature': 0.0,
             'initial_prompt': None,
             'condition_on_previous_text': True,
-            'vad_filter': True,
+            'vad_filter': False,
         },
         'activation_key': 'ctrl+shift+space',
         'sound_device': None,
@@ -67,11 +68,14 @@ def clear_status_queue():
             break
 
 def on_shortcut():
-    global status_queue
+    global status_queue, local_model
     clear_status_queue()
 
     status_queue.put(('recording', 'Recording...'))
-    recording_thread = ResultThread(target=record_and_transcribe, args=(status_queue,), kwargs={'config': config})
+    recording_thread = ResultThread(target=record_and_transcribe, 
+                                    args=(status_queue,),
+                                    kwargs={'config': config,
+                                            'local_model': local_model if local_model and not config['use_api'] else None},)
     status_window = StatusWindow(status_queue)
     status_window.recording_thread = recording_thread
     status_window.start()
@@ -107,6 +111,11 @@ keyboard.add_hotkey(config['activation_key'], on_shortcut)
 pyinput_keyboard = Controller()
 
 print(f'Script activated. Whisper is set to run using {method}. To change this, modify the "use_api" value in the src\\config.json file.')
+if not config['use_api']:
+    print('Creating local model...')
+    local_model = create_local_model(config)
+    print('Local model created.')
+
 print(f'Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
 try:
     keyboard.wait()  # Keep the script running to listen for the shortcut

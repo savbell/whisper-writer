@@ -24,11 +24,17 @@ def process_transcription(transcription, config=None):
     
     return transcription
 
+def create_local_model(config):
+    model = WhisperModel(config['local_model_options']['model'],
+                         device=config['local_model_options']['device'],
+                         compute_type=config['local_model_options']['compute_type'],)
+    return model
+
 """
-Record audio from the microphone and transcribe it using the OpenAI API.
+Record audio from the microphone and transcribe it using the Whisper model.
 Recording stops when the user stops speaking.
 """
-def record_and_transcribe(status_queue, cancel_flag, config=None):
+def record_and_transcribe(status_queue, cancel_flag, config, local_model=None):
     sound_device = config['sound_device'] if config else None
     sample_rate = config['sample_rate'] if config else 16000  # 16kHz, supported values: 8kHz, 16kHz, 32kHz, 48kHz, 96kHz
     frame_duration = 30  # 30ms, supported values: 10, 20, 30
@@ -93,18 +99,18 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
             result = response.get('text')
         # Otherwise, transcribe the temporary audio file using a local model
         elif not config['use_api']:
+            if not local_model:
+                print('Creating local model...') if config['print_to_terminal'] else ''
+                local_model = create_local_model(config)
+                print('Local model created.') if config['print_to_terminal'] else ''
             model_options = config['local_model_options']
-            model = WhisperModel(model_options['model'],
-                                 device=model_options['device'] if model_options['device'] else 'auto',)
-            response = model.transcribe(audio=temp_audio_file.name,
-                                        language=model_options['language'],
-                                        initial_prompt=model_options['initial_prompt'],
-                                        condition_on_previous_text=model_options['condition_on_previous_text'],
-                                        temperature=model_options['temperature'],
-                                        vad_filter=model_options['vad_filter'],)
-            result = ''
-            for segment in list(response[0]):
-                result += segment.text
+            response = local_model.transcribe(audio=temp_audio_file.name,
+                                              language=model_options['language'],
+                                              initial_prompt=model_options['initial_prompt'],
+                                              condition_on_previous_text=model_options['condition_on_previous_text'],
+                                              temperature=model_options['temperature'],
+                                              vad_filter=model_options['vad_filter'],)
+            result = ''.join([segment.text for segment in list(response[0])])
 
         # Remove the temporary audio file
         os.remove(temp_audio_file.name)

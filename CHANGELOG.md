@@ -2,8 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### Added
@@ -17,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated from `webrtcvad` to `webrtcvad-wheels` (PR #17).
 - Changed default activation key combo from `ctrl+alt+space` to `ctrl+shift+space`.
 - Changed to using a local model rather than the API by default.
+
+### Fixed
+- Local model is now only loaded once at start-up, rather than every time the activation key combo was pressed.
+- Default configuration now auto-chooses compute type for the local model to avoid warnings.
 
 ## [1.0.0] - 2023-05-29
 ### Added

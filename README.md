@@ -99,11 +99,12 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     "local_model_options": {
         "model": "base",
         "device": "auto",
+        "compute_type": "auto",
         "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
-        "vad_filter": true
+        "vad_filter": false
     },
     "activation_key": "ctrl+shift+space",
     "sound_device": null,
@@ -126,11 +127,12 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `local_model_options`: Contains options for the local Whisper model. See the [function definition](https://github.com/openai/whisper/blob/main/whisper/transcribe.py#L52-L108) for more details.
   - `model`: The model to use for transcription. See [available models and languages](https://github.com/openai/whisper#available-models-and-languages). (Default: `"base"`)
   - `device`: The device to run the local Whisper model on. Options include `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `auto` to let the system automatically choose the best available device. (Default: `auto`)
+  - `compute_type`: The compute type to use for the local Whisper model. [More information can be found here.](https://opennmt.net/CTranslate2/quantization.html) (Default: `auto`)
   - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: `null`)
   - `temperature`: Controls the randomness of the transcription output. Lower values (e.g., 0.0) make the output more focused and deterministic. (Default: `0.0`)
   - `initial_prompt`: A string used as an initial prompt to condition the transcription. [Here's some info on how it works](https://platform.openai.com/docs/guides/speech-to-text/prompting). Set to null for no initial prompt. (Default: `null`)
   - `conditin_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
-  - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `true`)
+  - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `false`)
 ### Customization Options
 - `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: `"ctrl+shift+space"`)
 - `sound_device`: The name of the sound device to use for recording. Set to `null` to let the system automatically choose the default device. To find a device number, run `python -m sounddevice`. (Default: `null`)
@@ -144,25 +146,9 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 
 If any of the configuration options are invalid or not provided, the program will use the default values.
 
-## Versioning
-
-We use [Semantic Versioning](https://semver.org/) for this project. For the available versions, see the [tags on this repository](https://github.com/savbell/whisper-writer/tags). 
-
-The version format is `MAJOR.MINOR.PATCH`, where: 
-
-- `MAJOR` versions indicate potentially incompatible changes,
-- `MINOR` versions indicate the addition of functionality in a backwards-compatible manner, and
-- `PATCH` versions indicate backwards-compatible bug fixes.
-
-For detailed changes, please check the [CHANGELOG.md](CHANGELOG.md) file in this repository.
-
 ## Known Issues
 
-As of the latest version, the following issues are known:
-
-- **FP16 Not Supported on CPU Warning**: A warning may show if you are running the local model on your CPU rather than a GPU using CUDA. This can be safely ignored.
-
-Please note that this is not an exhaustive list and new issues can emerge over time. You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem not listed here, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
+You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
 ## License
 

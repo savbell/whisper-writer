@@ -9,11 +9,12 @@
     "local_model_options": {
         "model": "base",
         "device": "auto",
+        "compute_type": "auto",
         "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
-        "vad_filter": true
+        "vad_filter": false
     },
     "activation_key": "ctrl+shift+space",
     "sound_device": null,
