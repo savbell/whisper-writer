@@ -1,5 +1,5 @@
 {
-    "use_api": true,
+    "use_api": false,
     "api_options": {
         "model": "whisper-1",
         "language": null,
@@ -8,12 +8,12 @@
     },
     "local_model_options": {
         "model": "base",
-        "device": null,
+        "device": "auto",
         "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
-        "verbose": false
+        "vad_filter": true
     },
     "activation_key": "ctrl+shift+space",
     "sound_device": null,

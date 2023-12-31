@@ -22,7 +22,7 @@ class ResultThread(threading.Thread):
 
 def load_config_with_defaults():
     default_config = {
-        'use_api': True,
+        'use_api': False,
         'api_options': {
             'model': 'whisper-1',
             'language': None,
@@ -31,12 +31,12 @@ def load_config_with_defaults():
         },
         'local_model_options': {
             'model': 'base',
-            'device': None,
+            'device': 'auto',
             'language': None,
             'temperature': 0.0,
             'initial_prompt': None,
             'condition_on_previous_text': True,
-            'verbose': False
+            'vad_filter': True,
         },
         'activation_key': 'ctrl+shift+space',
         'sound_device': None,

@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing section added to README.md.
 
 ### Changed
-- Changed from using `pyautogui` to `pynput` (#10).
-- Changed from using `webrtcvad` to `webrtcvad-wheels` (#17).
-- Updated Whisper package to version 20231117.
+- Migrated from `whisper` to `faster-whisper` (Issue #11).
+- Migrated from `pyautogui` to `pynput` (PR #10).
+- Migrated from `webrtcvad` to `webrtcvad-wheels` (PR #17).
 - Changed default activation key combo from `ctrl+alt+space` to `ctrl+shift+space`.
+- Changed to using a local model rather than the API by default.
 
 ## [1.0.0] - 2023-05-29
 ### Added

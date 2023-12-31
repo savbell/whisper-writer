@@ -6,8 +6,8 @@ import sounddevice as sd
 import tempfile
 import wave
 import webrtcvad
-import whisper
 from dotenv import load_dotenv
+from faster_whisper import WhisperModel
 
 
 if load_dotenv():
@@ -90,18 +90,21 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
                                                    language=api_options['language'],
                                                    prompt=api_options['initial_prompt'],
                                                    temperature=api_options['temperature'],)
+            result = response.get('text')
         # Otherwise, transcribe the temporary audio file using a local model
         elif not config['use_api']:
             model_options = config['local_model_options']
-            model = whisper.load_model(name=model_options['model'],
-                                       device=model_options['device'])
+            model = WhisperModel(model_options['model'],
+                                 device=model_options['device'] if model_options['device'] else 'auto',)
             response = model.transcribe(audio=temp_audio_file.name,
                                         language=model_options['language'],
-                                        verbose=None if not config['print_to_terminal'] else model_options['verbose'],
                                         initial_prompt=model_options['initial_prompt'],
                                         condition_on_previous_text=model_options['condition_on_previous_text'],
-                                        temperature=model_options['temperature'],)
-        
+                                        temperature=model_options['temperature'],
+                                        vad_filter=model_options['vad_filter'],)
+            result = ''
+            for segment in list(response[0]):
+                result += segment.text
 
         # Remove the temporary audio file
         os.remove(temp_audio_file.name)
@@ -110,12 +113,11 @@ def record_and_transcribe(status_queue, cancel_flag, config=None):
             status_queue.put(('cancel', ''))
             return ''
 
-        result = response.get('text')
         print('Transcription:', result.strip()) if config['print_to_terminal'] else ''
         status_queue.put(('idle', ''))
         
         return process_transcription(result.strip(), config) if result else ''
-            
+
     except Exception as e:
         traceback.print_exc()
         status_queue.put(('error', 'Error'))

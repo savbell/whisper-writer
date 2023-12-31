@@ -10,7 +10,7 @@ WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](h
 
 Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+shift+space` by default, but this can be changed in the [Configuration Options](#configuration-options)). When the shortcut is pressed, the app starts recording from your microphone. It will continue recording until you stop speaking or there is a long enough pause in your speech. While it is recording, a small status window is displayed that shows the current stage of the transcription process. Once the transcription is complete, the transcribed text will be automatically written to the active window.
 
-The transcription can either be done locally through the [Whisper Python package](https://pypi.org/project/openai-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use the API, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file. If you choose to transcribe using a local model, you will need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and potentially [Rust](https://www.rust-lang.org/) as well.
+The transcription can either be done locally through the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use a local model, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file.
 
 **Fun fact:** Almost the entirety of this project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
 
@@ -19,25 +19,6 @@ Before you can run this app, you'll need to have the following software installe
 
 - Git: [https://git-scm.com/downloads](https://git-scm.com/downloads)
 - Python `3.11`: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-
-If you are running a local model, you will also need to install the command-line tool [ffmpeg](https://ffmpeg.org/) and add it to your PATH:
-```
-# on Ubuntu or Debian
-sudo apt update && sudo apt install ffmpeg
-
-# on Arch Linux
-sudo pacman -S ffmpeg
-
-# on MacOS using Homebrew (https://brew.sh/)
-brew install ffmpeg
-
-# on Windows using Chocolatey (https://chocolatey.org/)
-choco install ffmpeg
-
-# on Windows using Scoop (https://scoop.sh/)
-scoop install ffmpeg
-```
-If you are running into issues, you may need to install Rust. See [Whisper Setup](https://github.com/openai/whisper#setup).
 
 ## Installation
 To set up and run the project, follow these steps:
@@ -71,11 +52,11 @@ pip install -r requirements.txt
 To switch between running Whisper locally and using the OpenAI API, you need to modify the `src\config.json` file:
 
 - If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to set up your OpenAI API key in the next step.
-- If you prefer using a local Whisper model, set `"use_api"` to `false`. You may also want to change the device that the model uses; see the [Model Options](#model-options). Make sure you followed the [prerequisite steps](#prerequisites) and installed ffmpeg and Rust if necessary.
+- If you prefer using a local Whisper model, set `"use_api"` to `false`. You may also want to change the device that the model uses; see the [Model Options](#model-options).
 
 ```
 {
-    "use_api": true,    // Change this value to false to run Whisper locally
+    "use_api": false,    // Change this value to true to use the OpenAI API
     ...
 }
 ```
@@ -94,6 +75,7 @@ Open the ".env" file and add in your OpenAI API key:
 ```
 OPENAI_API_KEY=<your_openai_key_here>
 ```
+You can find your API key on the [OpenAI dashboard](https://platform.openai.com/api-keys). You will need to have available credits to use the API.
 
 ### 6. Run the Python code:
 
@@ -107,7 +89,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 
 ```json
 {
-    "use_api": true,
+    "use_api": false,
     "api_options": {
         "model": "whisper-1",
         "language": null,
@@ -116,12 +98,12 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     },
     "local_model_options": {
         "model": "base",
-        "device": null,
+        "device": "auto",
         "language": null,
         "temperature": 0.0,
         "initial_prompt": null,
         "condition_on_previous_text": true,
-        "verbose": false
+        "vad_filter": true
     },
     "activation_key": "ctrl+shift+space",
     "sound_device": null,
@@ -135,20 +117,20 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 }
 ```
 ### Model Options
-- `use_api`: Set to `true` to use the OpenAI API for transcription. Set to `false` to use a local Whisper model. (Default: `true`)
+- `use_api`: Set to `true` to use the OpenAI API for transcription. Set to `false` to use a local Whisper model. (Default: `false`)
 - `api_options`: Contains options for the OpenAI API. See the [API reference](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more details.
   - `model`: The model to use for transcription. Currently only `whisper-1` is available. (Default: `"whisper-1"`)
   - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: `null`)
   - `temperature`: Controls the randomness of the transcription output. Lower values (e.g., 0.0) make the output more focused and deterministic. (Default: `0.0`)
-  - `initial_prompt`: A string used as an initial prompt to condition the transcription. Set to null for no initial prompt. (Default: `null`)
+  - `initial_prompt`: A string used as an initial prompt to condition the transcription. [Here's some info on how it works](https://platform.openai.com/docs/guides/speech-to-text/prompting). Set to null for no initial prompt. (Default: `null`)
 - `local_model_options`: Contains options for the local Whisper model. See the [function definition](https://github.com/openai/whisper/blob/main/whisper/transcribe.py#L52-L108) for more details.
   - `model`: The model to use for transcription. See [available models and languages](https://github.com/openai/whisper#available-models-and-languages). (Default: `"base"`)
-  - `device`: The device to run the local Whisper model on. Options include `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `null` to let the system automatically choose the best available device. (Default: `null`)
+  - `device`: The device to run the local Whisper model on. Options include `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `auto` to let the system automatically choose the best available device. (Default: `auto`)
   - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). (Default: `null`)
   - `temperature`: Controls the randomness of the transcription output. Lower values (e.g., 0.0) make the output more focused and deterministic. (Default: `0.0`)
-  - `initial_prompt`: A string used as an initial prompt to condition the transcription. Set to null for no initial prompt. (Default: `null`)
+  - `initial_prompt`: A string used as an initial prompt to condition the transcription. [Here's some info on how it works](https://platform.openai.com/docs/guides/speech-to-text/prompting). Set to null for no initial prompt. (Default: `null`)
   - `conditin_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
-  - `verbose`: Set to `true` for more detailed transcription output. (Default: `false`)
+  - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `true`)
 ### Customization Options
 - `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: `"ctrl+shift+space"`)
 - `sound_device`: The name of the sound device to use for recording. Set to `null` to let the system automatically choose the default device. To find a device number, run `python -m sounddevice`. (Default: `null`)
