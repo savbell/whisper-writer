@@ -14,23 +14,25 @@ The transcription can either be done locally through the [faster-whisper Python 
 
 **Fun fact:** Almost the entirety of this project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 Before you can run this app, you'll need to have the following software installed:
 
 - Git: [https://git-scm.com/downloads](https://git-scm.com/downloads)
 - Python `3.11`: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 
-## Installation
+### Installation
 To set up and run the project, follow these steps:
 
-### 1. Clone the repository:
+#### 1. Clone the repository:
 
 ```
 git clone https://github.com/savbell/whisper-writer
 cd whisper-writer
 ```
 
-### 2. Create a virtual environment and activate it:
+#### 2. Create a virtual environment and activate it:
 
 ```
 python -m venv venv
@@ -42,13 +44,13 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-### 3. Install the required packages:
+#### 3. Install the required packages:
 
 ```
 pip install -r requirements.txt
 ```
 
-### 4. Switch between a local model and the OpenAI API:
+#### 4. Switch between a local model and the OpenAI API:
 To switch between running Whisper locally and using the OpenAI API, you need to modify the `src\config.json` file:
 
 - If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to set up your OpenAI API key in the next step.
@@ -61,7 +63,7 @@ To switch between running Whisper locally and using the OpenAI API, you need to 
 }
 ```
 
-### 5. If using the OpenAI API, configure the environment variables:
+#### 5. If using the OpenAI API, configure the environment variables:
 
 Copy the ".env.example" file to a new file named ".env":
 ```
@@ -77,15 +79,15 @@ OPENAI_API_KEY=<your_openai_key_here>
 ```
 You can find your API key on the [OpenAI dashboard](https://platform.openai.com/api-keys). You will need to have available credits to use the API.
 
-### 6. Run the Python code:
+#### 6. Run the Python code:
 
 ```
 python run.py
 ```
 
-## Configuration Options
+### Configuration Options
 
-WhisperWriter uses a configuration file to customize its behaviour. To set up the configuration, modify the `src\config.json` file:
+WhisperWriter uses a configuration file to customize its behaviour. To set up the configuration, modify the [`src\config.json`](src\config.json) file:
 
 ```json
 {
@@ -117,7 +119,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     "print_to_terminal": true
 }
 ```
-### Model Options
+#### Model Options
 - `use_api`: Set to `true` to use the OpenAI API for transcription. Set to `false` to use a local Whisper model. (Default: `false`)
 - `api_options`: Contains options for the OpenAI API. See the [API reference](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more details.
   - `model`: The model to use for transcription. Currently only `whisper-1` is available. (Default: `"whisper-1"`)
@@ -133,7 +135,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
   - `initial_prompt`: A string used as an initial prompt to condition the transcription. [Here's some info on how it works](https://platform.openai.com/docs/guides/speech-to-text/prompting). Set to null for no initial prompt. (Default: `null`)
   - `conditin_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
   - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `false`)
-### Customization Options
+#### Customization Options
 - `activation_key`: The keyboard shortcut to activate the recording and transcribing process. (Default: `"ctrl+shift+space"`)
 - `sound_device`: The name of the sound device to use for recording. Set to `null` to let the system automatically choose the default device. To find a device number, run `python -m sounddevice`. (Default: `null`)
 - `sample_rate`: The sample rate in Hz to use for recording. (Default: `16000`)
@@ -150,10 +152,31 @@ If any of the configuration options are invalid or not provided, the program wil
 
 You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
-## License
+## Roadmap
+Below are features I am planning to add in the near future:
+- [ ] Restructuring configuration options to reduce redundancy
+- [ ] Update to use the latest version of the OpenAI API
+- [ ] Additional post-processing options:
+  - [ ] Simple word replacement (e.g. "gonna" -> "going to" or "smiley face" -> "😊")
+  - [ ] Using GPT for instructional post-processing
+- [ ] Updating GUI
+- [ ] Creating standalone executable file
 
-This project is licensed under the GNU General Public License. See the [LICENSE](LICENSE) file for details.
+Below are features I plan on investigating and may end up adding in the future:
+- [ ] Push-to-talk option
+
+Below are features not currently planned:
+- [ ] Pipelining audio files
 
 ## Contributing
 
 Contributions are welcome! I created this project for my own personal use and didn't expect it to get much attention, so I haven't put much effort into testing or making it easy for others to contribute. If you have ideas or suggestions, feel free to [open a pull request](https://github.com/savbell/whisper-writer/pulls) or [create a new issue](https://github.com/savbell/whisper-writer/issues/new). I'll do my best to review and respond as time allows.
+
+## Credits
+
+- [OpenAI](https://openai.com/) for creating the Whisper model and providing the API.
+- [Guillaume Klein](https://github.com/guillaumekln) for creating the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper).
+
+## License
+
+This project is licensed under the GNU General Public License. See the [LICENSE](LICENSE) file for details.

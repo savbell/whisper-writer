@@ -8,7 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - New message to identify whether Whisper was being called using the API or running locally.
 - New configuration options to choose which sound device and sample rate to use.
-- Contributing section added to README.md.
 
 ### Changed
 - Migrated from `whisper` to `faster-whisper` (Issue #11).
@@ -16,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Migrated from `webrtcvad` to `webrtcvad-wheels` (PR #17).
 - Changed default activation key combo from `ctrl+alt+space` to `ctrl+shift+space`.
 - Changed to using a local model rather than the API by default.
+- Revamped README.md, including new Roadmap, Contributing, and Credits sections.
 
 ### Fixed
 - Local model is now only loaded once at start-up, rather than every time the activation key combo was pressed.
