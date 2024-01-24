@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Push to talk
 - New configuration option to enable/disable push to talk
 - New configuration option to hide status window
+- New configuration options to readme along with their descriptions
 
 ### Changed
 - Migrated from `whisper` to `faster-whisper` (Issue #11).
