@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - New message to identify whether Whisper was being called using the API or running locally.
 - New configuration options to choose which sound device and sample rate to use.
+- Push to talk
+- New configuration option to enable/disable push to talk
+- New configuration option to hide status window
 
 ### Changed
 - Migrated from `whisper` to `faster-whisper` (Issue #11).

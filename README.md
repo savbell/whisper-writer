@@ -145,6 +145,8 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `add_trailing_space`: Set to `true` to add a trailing space to the transcribed text. (Default: `true`)
 - `remove_capitalization`: Set to `true` to convert the transcribed text to lowercase. (Default: `false`)
 - `print_to_terminal`: Set to `true` to print the script status and transcribed text to the terminal. (Default: `true`)
+- `push_to_talk`: Set to `true` to enable push to talk. Recording starts when activation-key is pressed down. When activation-key is released, recording stops and transcription starts
+- `hide_window`: Set to `true` to hide the status window
 
 If any of the configuration options are invalid or not provided, the program will use the default values.
 
