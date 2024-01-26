@@ -24,5 +24,7 @@
     "remove_trailing_period": false,
     "add_trailing_space": true,
     "remove_capitalization": false,
-    "print_to_terminal": true
+    "print_to_terminal": true,
+    "push_to_talk": false,
+    "hide_status_window": false
 }

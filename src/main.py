@@ -48,6 +48,8 @@ def load_config_with_defaults():
         'add_trailing_space': False,
         'remove_capitalization': False,
         'print_to_terminal': True,
+        'push_to_talk': False,
+        'hide_status_window': False
     }
 
     config_path = os.path.join('src', 'config.json')
@@ -76,15 +78,18 @@ def on_shortcut():
                                     args=(status_queue,),
                                     kwargs={'config': config,
                                             'local_model': local_model if local_model and not config['use_api'] else None},)
-    status_window = StatusWindow(status_queue)
-    status_window.recording_thread = recording_thread
-    status_window.start()
+    
+    if not config['hide_status_window']:
+        status_window = StatusWindow(status_queue)
+        status_window.recording_thread = recording_thread
+        status_window.start()
+    
     recording_thread.start()
-
     recording_thread.join()
-
-    if status_window.is_alive():
-        status_queue.put(('cancel', ''))
+    
+    if not config['hide_status_window']:
+        if status_window.is_alive():
+            status_queue.put(('cancel', ''))
 
     transcribed_text = recording_thread.result
 
