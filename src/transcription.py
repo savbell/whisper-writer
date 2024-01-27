@@ -34,10 +34,14 @@ def create_local_model(config):
         except Exception as e:
             print(f"Error initializing WhisperModel with CUDA: {e}")
             print("Falling back to CPU.")
-            model = WhisperModel(config['local_model_options']['model'], device='cpu')
+            model = WhisperModel(config['local_model_options']['model'], 
+                                 device='cpu',
+                                 compute_type=config['local_model_options']['compute_type'])
     else:
         print("CUDA not available, using CPU.")
-        model = WhisperModel(config['local_model_options']['model'], device='cpu')
+        model = WhisperModel(config['local_model_options']['model'], 
+                             device='cpu',
+                             compute_type=config['local_model_options']['compute_type'])
     
     return model
 
