@@ -40,6 +40,7 @@ def load_config_with_defaults():
             'vad_filter': False,
         },
         'activation_key': 'ctrl+shift+space',
+        'recording_mode': 'voice_activity_detection', # 'voice_activity_detection', 'press_to_toggle', or 'hold_to_record'
         'sound_device': None,
         'sample_rate': 16000,
         'silence_duration': 900,
@@ -48,7 +49,6 @@ def load_config_with_defaults():
         'add_trailing_space': False,
         'remove_capitalization': False,
         'print_to_terminal': True,
-        'push_to_talk': False,
         'hide_status_window': False
     }
 
@@ -109,20 +109,31 @@ def typewrite(text, interval):
 # Main script
 
 config = load_config_with_defaults()
-method = 'OpenAI\'s API' if config['use_api'] else 'a local model'
-status_queue = queue.Queue()
 
-keyboard.add_hotkey(config['activation_key'], on_shortcut)
-pyinput_keyboard = Controller()
+model_method = 'OpenAI\'s API' if config['use_api'] else 'a local model'
+print(f'Script activated. Whisper is set to run using {model_method}. To change this, modify the "use_api" value in the src\\config.json file.')
 
-print(f'Script activated. Whisper is set to run using {method}. To change this, modify the "use_api" value in the src\\config.json file.')
+# Set up local model if needed
 local_model = None
 if not config['use_api']:
     print('Creating local model...')
     local_model = create_local_model(config)
     print('Local model created.')
 
-print(f'Press {format_keystrokes(config["activation_key"])} to start recording and transcribing. Press Ctrl+C on the terminal window to quit.')
+print(f'WhisperWriter is set to record using {config["recording_mode"]}. To change this, modify the "recording_mode" value in the src\\config.json file.')
+print(f'The activation key combo is set to {format_keystrokes(config["activation_key"])}.', end='')
+if config['recording_mode'] == 'voice_activity_detection':
+    print(' When it is pressed, recording will start, and will stop when you stop speaking.')
+elif config['recording_mode'] == 'press_to_toggle':
+    print(' When it is pressed, recording will start, and will stop when you press the key combo again.')
+elif config['recording_mode'] == 'hold_to_record':
+    print(' When it is pressed, recording will start, and will stop when you release the key combo.')
+print('Press Ctrl+C on the terminal window to quit.')
+
+# Set up status window and keyboard listener
+status_queue = queue.Queue()
+pyinput_keyboard = Controller()
+keyboard.add_hotkey(config['activation_key'], on_shortcut)
 try:
     keyboard.wait()  # Keep the script running to listen for the shortcut
 except KeyboardInterrupt:

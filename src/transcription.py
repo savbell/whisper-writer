@@ -22,13 +22,13 @@ def create_local_model(config):
                                  device=config['local_model_options']['device'],
                                  compute_type=config['local_model_options']['compute_type'])
         except Exception as e:
-            print(f"Error initializing WhisperModel with CUDA: {e}")
-            print("Falling back to CPU.")
+            print(f'Error initializing WhisperModel with CUDA: {e}') if config['print_to_terminal'] else ''
+            print('Falling back to CPU.') if config['print_to_terminal'] else ''
             model = WhisperModel(config['local_model_options']['model'], 
                                  device='cpu',
                                  compute_type=config['local_model_options']['compute_type'])
     else:
-        print("CUDA not available, using CPU.")
+        print('CUDA not available, using CPU.') if config['print_to_terminal'] else ''
         model = WhisperModel(config['local_model_options']['model'], 
                              device='cpu',
                              compute_type=config['local_model_options']['compute_type'])
@@ -78,7 +78,7 @@ def record(status_queue, cancel_flag, config):
     buffer_duration = 300  # 300ms
     silence_duration = config['silence_duration'] if config else 900  # 900ms
 
-    push_to_talk = config['push_to_talk']
+    recording_mode = config['recording_mode']
     activation_key = config['activation_key']
 
     vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
@@ -97,22 +97,28 @@ def record(status_queue, cancel_flag, config):
 
                 frame = buffer[:sample_rate * frame_duration // 1000]
                 buffer = buffer[sample_rate * frame_duration // 1000:]
-
-                if push_to_talk:
-                    recording.extend(frame)
-                    if not keyboard.is_pressed(activation_key):
-                        break
-                else:
-                    is_speech = vad.is_speech(np.array(frame).tobytes(), sample_rate)
-                    if is_speech:
-                        recording.extend(frame)
-                        num_silent_frames = 0
-                    else:
-                        if len(recording) > 0:
-                            num_silent_frames += 1
-
-                        if num_silent_frames >= num_silence_frames:
+                
+                if not cancel_flag():
+                    if recording_mode == 'press_to_toggle':
+                        if len(recording) > 0 and keyboard.is_pressed(activation_key):
                             break
+                        else:
+                            recording.extend(frame)
+                    if recording_mode == 'hold_to_record':
+                        if keyboard.is_pressed(activation_key):
+                            recording.extend(frame)
+                        else:
+                            break
+                    elif recording_mode == 'voice_activity_detection':
+                        is_speech = vad.is_speech(np.array(frame).tobytes(), sample_rate)
+                        if is_speech:
+                            recording.extend(frame)
+                            num_silent_frames = 0
+                        else:
+                            if len(recording) > 0:
+                                num_silent_frames += 1
+                            if num_silent_frames >= num_silence_frames:
+                                break
 
         if cancel_flag():
             status_queue.put(('cancel', ''))
