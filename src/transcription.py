@@ -9,6 +9,7 @@ import webrtcvad
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 import keyboard
+import torch
 
 if load_dotenv():
     openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -25,9 +26,23 @@ def process_transcription(transcription, config=None):
     return transcription
 
 def create_local_model(config):
-    model = WhisperModel(config['local_model_options']['model'],
-                         device=config['local_model_options']['device'],
-                         compute_type=config['local_model_options']['compute_type'],)
+    if torch.cuda.is_available() and config['local_model_options']['device'] != 'cpu':
+        try:
+            model = WhisperModel(config['local_model_options']['model'],
+                                 device=config['local_model_options']['device'],
+                                 compute_type=config['local_model_options']['compute_type'])
+        except Exception as e:
+            print(f"Error initializing WhisperModel with CUDA: {e}")
+            print("Falling back to CPU.")
+            model = WhisperModel(config['local_model_options']['model'], 
+                                 device='cpu',
+                                 compute_type=config['local_model_options']['compute_type'])
+    else:
+        print("CUDA not available, using CPU.")
+        model = WhisperModel(config['local_model_options']['model'], 
+                             device='cpu',
+                             compute_type=config['local_model_options']['compute_type'])
+    
     return model
 
 """
