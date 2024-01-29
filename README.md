@@ -1,6 +1,6 @@
 # <img src="./assets/ww-logo.png" alt="WhisperWriter icon" width="25" height="25"> WhisperWriter
 
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.0.1-blue)
 
 <p align="center">
     <img src="./assets/ww-demo-image.gif" alt="WhisperWriter demo gif">
@@ -177,6 +177,8 @@ Below are features I am planning to add in the near future:
 
 Below are features not currently planned:
 - [ ] Pipelining audio files
+
+Implemented features can be found in the [CHANGELOG](CHANGELOG.md).
 
 ## Contributing
 

@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [1.0.1] - 2024-01-28
 ### Added
 - New message to identify whether Whisper was being called using the API or running locally.
 - Additional hold-to-talk ([PR #28](https://github.com/savbell/whisper-writer/pull/28)) and press-to-toggle recording methods ([Issue #21](https://github.com/savbell/whisper-writer/issues/21)).
@@ -36,5 +36,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Updated Whisper Python package; the local model is now compatible with Python 3.11.
 
-[Unreleased]: https://github.com/savbell/whisper-writer/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/savbell/whisper-writer/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/savbell/whisper-writer/releases/tag/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/savbell/whisper-writer/releases/tag/v1.0.0
