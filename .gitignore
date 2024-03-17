@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+#editor file backup extentions
+*.bak
+
 # Distribution / packaging
 .Python
 build/
