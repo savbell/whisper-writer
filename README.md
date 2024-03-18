@@ -56,6 +56,20 @@ venv\Scripts\activate
 
 #### 3. Install the required packages:
 
+Avoid a cyton3 bug by setting a PIP_CONSTRAINT env var:
+
+# For windows cmd
+```
+echo |set /p="cython<3.0" > PIP_CONSTRAINT.txt
+set PIP_CONSTRAINT=PIP_CONSTRAINT.txt
+```
+
+# For bash
+```
+echo "cython<3.0" > PIP_CONSTRAINT.txt
+export PIP_CONSTRAINT=PIP_CONSTRAINT.txt
+```
+
 ```
 pip install -r requirements.txt
 ```
