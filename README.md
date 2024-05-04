@@ -124,6 +124,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     "sample_rate": 16000,
     "silence_duration": 900,
     "writing_key_press_delay": 0.005,
+    "noise_on_completion": false,
     "remove_trailing_period": false,
     "add_trailing_space": true,
     "remove_capitalization": false,
@@ -153,6 +154,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `sample_rate`: The sample rate in Hz to use for recording. (Default: `16000`)
 - `silence_duration`: The duration in milliseconds to wait for silence before stopping the recording. (Default: `900`)
 - `writing_key_press_delay`: The delay in seconds between each key press when writing the transcribed text. (Default: `0.005`)
+- `noise_on_completion`: Set to `true` to play a sound when the transcription is complete. (Default: `false`)
 - `remove_trailing_period`: Set to `true` to remove the trailing period from the transcribed text. (Default: `false`)
 - `add_trailing_space`: Set to `true` to add a trailing space to the transcribed text. (Default: `true`)
 - `remove_capitalization`: Set to `true` to convert the transcribed text to lowercase. (Default: `false`)

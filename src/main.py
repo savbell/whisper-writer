@@ -4,6 +4,7 @@ import queue
 import threading
 import time
 import keyboard
+from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
 from transcription import create_local_model, record_and_transcribe
 from status_window import StatusWindow
@@ -45,6 +46,7 @@ def load_config_with_defaults():
         'sample_rate': 16000,
         'silence_duration': 900,
         'writing_key_press_delay': 0.008,
+        'noise_on_completion': False,
         'remove_trailing_period': True,
         'add_trailing_space': False,
         'remove_capitalization': False,
@@ -95,6 +97,9 @@ def on_shortcut():
 
     if transcribed_text:
         typewrite(transcribed_text, interval=config['writing_key_press_delay'])
+
+    if config['noise_on_completion']:
+        AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
 
 def format_keystrokes(key_string):
     return '+'.join(word.capitalize() for word in key_string.split('+'))
