@@ -15,7 +15,7 @@ Once started, the script runs in the background and waits for a keyboard shortcu
 
 You can change the activation key and recording mode in the [Configuration Options](#configuration-options). While recording and transcribing, a small status window is displayed that shows the current stage of the process (but this can be turned off). Once the transcription is complete, the transcribed text will be automatically written to the active window.
 
-The transcription can either be done locally through the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use a local model, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file.
+The transcription can either be done locally through the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use a local model, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to provide your OpenAI API key in a `.env` file, or change the base URL endpoint.
 
 **Fun fact:** Almost the entirety of the initial release of the project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
 
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 #### 4. Switch between a local model and the OpenAI API:
 To switch between running Whisper locally and using the OpenAI API, you need to modify the `src\config.json` file:
 
-- If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to set up your OpenAI API key in the next step.
+- If you prefer using the OpenAI API, set `"use_api"` to `true`. You will also need to either set up your OpenAI API key or change the base URL in the next step.
 - If you prefer using a local Whisper model, set `"use_api"` to `false`. You may also want to change the device that the model uses; see the [Model Options](#model-options). Note that you need to have the [NVIDIA libraries installed](https://github.com/SYSTRAN/faster-whisper/#gpu) to run the model on your GPU.
 
 ```
@@ -88,6 +88,11 @@ Open the ".env" file and add in your OpenAI API key:
 OPENAI_API_KEY=<your_openai_key_here>
 ```
 You can find your API key on the [OpenAI dashboard](https://platform.openai.com/api-keys). You will need to have available credits to use the API.
+
+Alternatively, you can set the base URL endpoint to use a local API such as [LocalAI](https://localai.io/):
+```
+OPENAI_API_BASE_URL=<your_custom_url_here>
+```
 
 #### 6. Run the Python code:
 
@@ -170,7 +175,7 @@ You can see all reported issues and their current status in our [Issue Tracker](
 ## Roadmap
 Below are features I am planning to add in the near future:
 - [ ] Restructuring configuration options to reduce redundancy
-- [ ] Update to use the latest version of the OpenAI API
+- [x] Update to use the latest version of the OpenAI API
 - [ ] Additional post-processing options:
   - [ ] Simple word replacement (e.g. "gonna" -> "going to" or "smiley face" -> "😊")
   - [ ] Using GPT for instructional post-processing

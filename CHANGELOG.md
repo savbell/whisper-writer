@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - New option to play a sound when transcription finishes ([Issue #40](https://github.com/savbell/whisper-writer/issues/40)).
 
+### Changed
+- Upgraded to latest versions of OpenAI API and faster-whisper, including support for local API ([Issue #32](https://github.com/savbell/whisper-writer/issues/32))
+
 ## [1.0.1] - 2024-01-28
 ### Added
 - New message to identify whether Whisper was being called using the API or running locally.

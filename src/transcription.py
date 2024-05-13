@@ -1,6 +1,5 @@
 import traceback
 import numpy as np
-import openai
 import os
 import sounddevice as sd
 import tempfile
@@ -8,6 +7,7 @@ import wave
 import webrtcvad
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
+from openai import OpenAI
 import keyboard
 import torch
 
@@ -56,20 +56,23 @@ def transcribe_local(config, temp_audio_file, local_model=None):
 Transcribe an audio file using the OpenAI API.
 """
 def transcribe_api(config, temp_audio_file):
-    if load_dotenv():
-        openai.api_key = os.getenv('OPENAI_API_KEY')
+    load_dotenv()
+    client = OpenAI(
+        api_key=os.getenv('OPENAI_API_KEY') if os.getenv('OPENAI_API_KEY') else None,
+        base_url=os.getenv('OPENAI_BASE_URL') if os.getenv('OPENAI_BASE_URL') else 'https://api.openai.com/v1',
+    )
     api_options = config['api_options']
     with open(temp_audio_file, 'rb') as audio_file:
-        response = openai.Audio.transcribe(model=api_options['model'], 
-                                            file=audio_file,
-                                            language=api_options['language'],
-                                            prompt=api_options['initial_prompt'],
-                                            temperature=api_options['temperature'],)
-    return response.get('text')
+        response = client.audio.transcriptions.create(model=api_options['model'], 
+                                                        file=audio_file,
+                                                        language=api_options['language'],
+                                                        prompt=api_options['initial_prompt'],
+                                                        temperature=api_options['temperature'],)
+    return response.text
 
 """
-Record audio from the microphone (sound_device).
-If push_to_talk is True, the user must hold down the activation_key to record. Otherwise, recording will stop when the user stops speaking.
+Record audio from the microphone (sound_device). Recording stops when the activation_key is pressed (press_to_toggle),
+released (hold_to_record), or after silence_duration (voice_activity_detection).
 """
 def record(status_queue, cancel_flag, config):
     sound_device = config['sound_device'] if config else None
