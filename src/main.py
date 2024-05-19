@@ -1,14 +1,21 @@
 import json
 import os
 import queue
+import sys
 import threading
 import time
 import keyboard
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
+from PyQt5.QtWidgets import QApplication
+
 from transcription import create_local_model, record_and_transcribe
 from status_window import StatusWindow
+from ui.main_window import MainWindow
+from ui.settings_window import SettingsWindow
+from utils import load_config_schema
 
+"""
 class ResultThread(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(ResultThread, self).__init__(*args, **kwargs)
@@ -144,3 +151,19 @@ try:
 except KeyboardInterrupt:
     print('\nExiting the script...')
     os.system('exit')
+"""
+
+def main():
+    app = QApplication(sys.argv)
+    
+    schema = load_config_schema()
+    settings_window = SettingsWindow(schema)
+    
+    main_window = MainWindow()
+    main_window.openSettings.connect(settings_window.show)
+    
+    main_window.show()
+    sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()

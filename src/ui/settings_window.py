@@ -7,14 +7,15 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from base_window import BaseWindow
+from ui.base_window import BaseWindow
 from utils import load_config_schema, load_config_values, save_config
 
 class SettingsWindow(BaseWindow):
     def __init__(self, schema):
         self.schema = schema
         self.config = load_config_values(schema)
-        self.default_config = load_config_values(schema, config_path=None)  # Load defaults from schema
+        self.initial_config = self.config.copy()
+        self.default_config = load_config_values(schema, config_path=None)
         self.api_widgets = []
         self.local_widgets = []
         super().__init__('Settings', 700, 700)
@@ -56,7 +57,7 @@ class SettingsWindow(BaseWindow):
     def add_setting_widget(self, layout, key, meta, category, sub_category=None):
         item_layout = QHBoxLayout()
 
-        label = QLabel(f'{key.replace('_', ' ').capitalize()}:')
+        label = QLabel(f"{key.replace('_', ' ').capitalize()}:")
         label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         meta_type = meta.get('type')
 
@@ -102,9 +103,9 @@ class SettingsWindow(BaseWindow):
 
         # Use a unique attribute name to avoid conflicts
         if sub_category:
-            setattr(self, f'{category}_{sub_category}_{key}_input', widget)
+            setattr(self, f"{category}_{sub_category}_{key}_input", widget)
         else:
-            setattr(self, f'{category}_{key}_input', widget)
+            setattr(self, f"{category}_{key}_input", widget)
 
         # Store the widget in the relevant list
         if sub_category == 'api':
@@ -119,13 +120,13 @@ class SettingsWindow(BaseWindow):
         for category, settings in self.schema.items():
             for sub_category, sub_settings in settings.items():
                 if isinstance(sub_settings, dict) and 'value' in sub_settings:
-                    widget = getattr(self, f'{category}_{sub_category}_input', None)
+                    widget = getattr(self, f"{category}_{sub_category}_input", None)
                     if widget is None:
                         continue
                     self.config[category][sub_category] = self.get_widget_value(widget, sub_settings.get('type'))
                 else:
                     for key, meta in sub_settings.items():
-                        widget = getattr(self, f'{category}_{sub_category}_{key}_input', None)
+                        widget = getattr(self, f"{category}_{sub_category}_{key}_input", None)
                         if widget is None:
                             continue
                         if sub_category not in self.config[category]:
@@ -137,21 +138,24 @@ class SettingsWindow(BaseWindow):
         self.close()
 
     def resetSettings(self):
+        self.reset_to_initial_settings(self.default_config)
+
+    def reset_to_initial_settings(self, config_source):
         for category, settings in self.schema.items():
             for sub_category, sub_settings in settings.items():
                 if isinstance(sub_settings, dict) and 'value' in sub_settings:
-                    widget = getattr(self, f'{category}_{sub_category}_input', None)
+                    widget = getattr(self, f"{category}_{sub_category}_input", None)
                     if widget is None:
                         continue
-                    default_value = self.default_config[category][sub_category]
-                    self.set_widget_value(widget, default_value, sub_settings.get('type'))
+                    initial_value = config_source[category][sub_category]
+                    self.set_widget_value(widget, initial_value, sub_settings.get('type'))
                 else:
                     for key, meta in sub_settings.items():
-                        widget = getattr(self, f'{category}_{sub_category}_{key}_input', None)
+                        widget = getattr(self, f"{category}_{sub_category}_{key}_input", None)
                         if widget is None:
                             continue
-                        default_value = self.default_config[category][sub_category][key]
-                        self.set_widget_value(widget, default_value, meta.get('type'))
+                        initial_value = config_source[category][sub_category][key]
+                        self.set_widget_value(widget, initial_value, meta.get('type'))
 
     def set_widget_value(self, widget, value, value_type):
         if isinstance(widget, QCheckBox):
@@ -187,6 +191,10 @@ class SettingsWindow(BaseWindow):
             label.setVisible(not use_api)
             widget.setVisible(not use_api)
             help_button.setVisible(not use_api)
+
+    def closeEvent(self, event):
+        self.reset_to_initial_settings(self.initial_config)
+        super().closeEvent(event)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

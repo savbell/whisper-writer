@@ -4,7 +4,8 @@ from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QTimer
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QHBoxLayout
 
-from base_window import BaseWindow
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from ui.base_window import BaseWindow
 
 
 class StatusWindow(BaseWindow):
