@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox,
     QMessageBox, QTabWidget, QWidget, QSizePolicy, QSpacerItem, QToolButton, QStyle
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QCoreApplication, QProcess
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
@@ -134,8 +134,14 @@ class SettingsWindow(BaseWindow):
                         self.config[category][sub_category][key] = self.get_widget_value(widget, meta.get('type'))
 
         save_config(self.config)
-        QMessageBox.information(self, 'Settings Saved', 'Your settings have been saved successfully.')
+        QMessageBox.information(self, 'Settings Saved', 'Settings have been saved. Restarting application...')
         self.close()
+        self.restart_application()
+
+    def restart_application(self):
+        QCoreApplication.quit()
+        QProcess.startDetached(sys.executable, sys.argv)
+
 
     def resetSettings(self):
         self.reset_to_initial_settings(self.default_config)
@@ -172,14 +178,17 @@ class SettingsWindow(BaseWindow):
         if isinstance(widget, QCheckBox):
             return widget.isChecked()
         elif isinstance(widget, QComboBox):
-            return widget.currentText()
+            value = widget.currentText()
+            return value if value else None
         elif isinstance(widget, QLineEdit):
+            text = widget.text()
             if value_type == 'int':
-                return int(widget.text())
+                return int(text) if text else None
             elif value_type == 'float':
-                return float(widget.text())
+                return float(text) if text else None
             else:
-                return widget.text()
+                return text if text else None
+
 
     def toggle_api_local_options(self, use_api):
         for label, widget, help_button in self.api_widgets:

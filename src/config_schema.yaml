@@ -89,7 +89,7 @@ recording_options:
       - press_to_toggle
       - hold_to_record
   sound_device:
-    value: auto
+    value: null
     type: str
     description: "The sound device to use for recording. To find device numbers, run `python -m sounddevice`"
   sample_rate:

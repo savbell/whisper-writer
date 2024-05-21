@@ -19,7 +19,7 @@ class MainWindow(BaseWindow):
         start_btn = QPushButton('Start')
         start_btn.setFont(QFont('Segoe UI', 10))
         start_btn.setFixedSize(120, 60)
-        start_btn.clicked.connect(self.startListening.emit)
+        start_btn.clicked.connect(self.startPressed)
 
         settings_btn = QPushButton('Settings')
         settings_btn.setFont(QFont('Segoe UI', 10))
@@ -38,6 +38,10 @@ class MainWindow(BaseWindow):
         
     def closeEvent(self, event):
         QApplication.quit()
+        
+    def startPressed(self):
+        self.startListening.emit()
+        self.hide()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
