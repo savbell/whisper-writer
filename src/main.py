@@ -44,10 +44,10 @@ class WhisperWriterApp:
         self.main_window.show()
 
     def activation_key_pressed(self):
-        if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
-            if self.result_thread and self.result_thread.isRunning():
+        if self.result_thread and self.result_thread.isRunning():
+            if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
                 self.result_thread.stop_recording()
-                return
+            return
 
         self.result_thread = ResultThread(self.config, self.local_model)
         if not self.config['misc']['hide_status_window']:

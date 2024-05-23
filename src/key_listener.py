@@ -18,12 +18,7 @@ class KeyListener(QThread):
     """
     def on_press(self, key):
         if not self.is_key_pressed:
-            if hasattr(key, 'name'):
-                self.pressed_keys.add(key.name)
-            elif hasattr(key, 'char'):
-                self.pressed_keys.add(key.char)
-            elif hasattr(key, 'vk'):
-                self.pressed_keys.add(str(key.vk))
+            self.pressed_keys.add(self.get_key_name(key))
             
             if self.required_keys.issubset(self.pressed_keys) and not self.is_key_pressed:
                 self.is_key_pressed = True
@@ -33,17 +28,29 @@ class KeyListener(QThread):
     Check if the required keys are released and emit the activationKeyReleased signal.
     """
     def on_release(self, key):
-        if hasattr(key, 'name'):
-            self.pressed_keys.discard(key.name)
-        elif hasattr(key, 'char'):
-            self.pressed_keys.discard(key.char)
-        elif hasattr(key, 'vk'):
-            self.pressed_keys.discard(str(key.vk))
+        self.pressed_keys.discard(self.get_key_name(key))
         
         if not self.required_keys.issubset(self.pressed_keys) and self.is_key_pressed:
             self.is_key_pressed = False
             self.activationKeyReleased.emit()
     
+    """
+    Get the key name from the key object.
+    """
+    def get_key_name(self, key):
+        if key in (keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
+            return 'ctrl'
+        elif key in (keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r):
+            return 'shift'
+        elif key in (keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r, keyboard.Key.alt_gr):
+            return 'alt'
+        elif key in (keyboard.Key.cmd, keyboard.Key.cmd_l, keyboard.Key.cmd_r):
+            return 'cmd'
+        elif hasattr(key, 'char'):
+            return key.char
+        elif hasattr(key, 'name'):
+            return key.name
+        return str(key)
     
     """
     Start listening for key events.

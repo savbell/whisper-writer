@@ -66,7 +66,7 @@ class ResultThread(QThread):
         silence_duration = self.config['recording_options']['silence_duration'] or 900
         recording_mode = self.config['recording_options']['recording_mode'] or 'voice_activity_detection'
 
-        vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
+        vad = webrtcvad.Vad(2)  # Aggressiveness mode
         buffer = []
         self.recording = []
         num_silent_frames = 0
