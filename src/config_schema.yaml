@@ -32,6 +32,10 @@ model_options:
       value: https://api.openai.com/v1
       type: str
       description: "The base URL for the API. Can be changed to use a local API endpoint."
+    api_key:
+      value: null
+      type: str
+      description: "Your API key for the OpenAI API. Required for non-local API usage."
 
   # Configuration options for the faster-whisper model
   local:

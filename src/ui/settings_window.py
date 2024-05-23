@@ -78,6 +78,8 @@ class SettingsWindow(BaseWindow):
             widget.setCurrentText(current_value)
         elif meta_type == 'str':
             widget = QLineEdit(current_value)
+            if key == 'api_key':
+                widget.setEchoMode(QLineEdit.Password)
         elif meta_type == 'int':
             widget = QLineEdit(str(current_value))
         elif meta_type == 'float':

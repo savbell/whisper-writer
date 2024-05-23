@@ -51,8 +51,8 @@ Transcribe an audio file using the OpenAI API.
 def transcribe_api(config, temp_audio_file):
     load_dotenv()
     client = OpenAI(
-        api_key=os.getenv('OPENAI_API_KEY') if os.getenv('OPENAI_API_KEY') else None,
-        base_url=os.getenv('OPENAI_BASE_URL') if os.getenv('OPENAI_BASE_URL') else 'https://api.openai.com/v1',
+        api_key=config['model_options']['api']['api_key'] or None,
+        base_url=config['model_options']['api']['base_url'] or 'https://api.openai.com/v1'
     )
     model_options = config['model_options']
     with open(temp_audio_file, 'rb') as audio_file:
