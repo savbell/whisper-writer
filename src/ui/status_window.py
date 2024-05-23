@@ -16,7 +16,7 @@ class StatusWindow(BaseWindow):
         self.statusSignal.connect(self.updateStatus)
 
     def initStatusUI(self):
-        self.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         
         status_layout = QHBoxLayout()
         status_layout.setContentsMargins(0, 0, 0, 0)

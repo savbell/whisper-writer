@@ -1,14 +1,7 @@
-import traceback
-import numpy as np
 import os
-import sounddevice as sd
-import tempfile
-import wave
-import webrtcvad
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from openai import OpenAI
-import keyboard
 import torch
 
 
@@ -16,22 +9,23 @@ import torch
 Create a local model using the faster_whisper library.
 """
 def create_local_model(config):
-    if torch.cuda.is_available() and config['local_model_options']['device'] != 'cpu':
+    local_model_options = config['model_options']['local']
+    if torch.cuda.is_available() and local_model_options['device'] != 'cpu':
         try:
-            model = WhisperModel(config['local_model_options']['model'],
-                                 device=config['local_model_options']['device'],
-                                 compute_type=config['local_model_options']['compute_type'])
+            model = WhisperModel(local_model_options['model'],
+                                 device=local_model_options['device'],
+                                 compute_type=local_model_options['compute_type'])
         except Exception as e:
-            print(f'Error initializing WhisperModel with CUDA: {e}') if config['print_to_terminal'] else ''
-            print('Falling back to CPU.') if config['print_to_terminal'] else ''
-            model = WhisperModel(config['local_model_options']['model'], 
+            print(f'Error initializing WhisperModel with CUDA: {e}') if config['misc']['print_to_terminal'] else ''
+            print('Falling back to CPU.') if config['misc']['print_to_terminal'] else ''
+            model = WhisperModel(local_model_options['model'], 
                                  device='cpu',
-                                 compute_type=config['local_model_options']['compute_type'])
+                                 compute_type=local_model_options['compute_type'])
     else:
-        print('CUDA not available, using CPU.') if config['print_to_terminal'] else ''
-        model = WhisperModel(config['local_model_options']['model'], 
+        print('CUDA not available, using CPU.') if config['misc']['print_to_terminal'] else ''
+        model = WhisperModel(local_model_options['model'], 
                              device='cpu',
-                             compute_type=config['local_model_options']['compute_type'])
+                             compute_type=local_model_options['compute_type'])
     
     return model
 
@@ -40,16 +34,16 @@ Transcribe an audio file using a local model.
 """
 def transcribe_local(config, temp_audio_file, local_model=None):
     if not local_model:
-        print('Creating local model...') if config['print_to_terminal'] else ''
+        print('Creating local model...') if config['misc']['print_to_terminal'] else ''
         local_model = create_local_model(config)
-        print('Local model created.') if config['print_to_terminal'] else ''
-    model_options = config['local_model_options']
+        print('Local model created.') if config['misc']['print_to_terminal'] else ''
+    model_options = config['model_options']
     response = local_model.transcribe(audio=temp_audio_file,
-                                        language=model_options['language'],
-                                        initial_prompt=model_options['initial_prompt'],
-                                        condition_on_previous_text=model_options['condition_on_previous_text'],
-                                        temperature=model_options['temperature'],
-                                        vad_filter=model_options['vad_filter'],)
+                                        language=model_options['common']['language'],
+                                        initial_prompt=model_options['common']['initial_prompt'],
+                                        condition_on_previous_text=model_options['local']['condition_on_previous_text'],
+                                        temperature=model_options['common']['temperature'],
+                                        vad_filter=model_options['local']['vad_filter'],)
     return ''.join([segment.text for segment in list(response[0])])
 
 """
@@ -61,89 +55,14 @@ def transcribe_api(config, temp_audio_file):
         api_key=os.getenv('OPENAI_API_KEY') if os.getenv('OPENAI_API_KEY') else None,
         base_url=os.getenv('OPENAI_BASE_URL') if os.getenv('OPENAI_BASE_URL') else 'https://api.openai.com/v1',
     )
-    api_options = config['api_options']
+    model_options = config['model_options']
     with open(temp_audio_file, 'rb') as audio_file:
-        response = client.audio.transcriptions.create(model=api_options['model'], 
+        response = client.audio.transcriptions.create(model=model_options['api']['model'], 
                                                         file=audio_file,
-                                                        language=api_options['language'],
-                                                        prompt=api_options['initial_prompt'],
-                                                        temperature=api_options['temperature'],)
+                                                        language=model_options['common']['language'],
+                                                        prompt=model_options['common']['initial_prompt'],
+                                                        temperature=model_options['common']['temperature'],)
     return response.text
-
-"""
-Record audio from the microphone (sound_device). Recording stops when the activation_key is pressed (press_to_toggle),
-released (hold_to_record), or after silence_duration (voice_activity_detection).
-"""
-def record(status_queue, cancel_flag, config):
-    sound_device = config['sound_device'] if config else None
-    sample_rate = config['sample_rate'] if config else 16000  # 16kHz, supported values: 8kHz, 16kHz, 32kHz, 48kHz, 96kHz
-    frame_duration = 30  # 30ms, supported values: 10, 20, 30
-    buffer_duration = 300  # 300ms
-    silence_duration = config['silence_duration'] if config else 900  # 900ms
-
-    recording_mode = config['recording_mode']
-    activation_key = config['activation_key']
-
-    vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
-    buffer = []
-    recording = []
-    num_silent_frames = 0
-    num_buffer_frames = buffer_duration // frame_duration
-    num_silence_frames = silence_duration // frame_duration
-    try:
-        print('Recording...') if config['print_to_terminal'] else ''
-        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=sample_rate * frame_duration // 1000,
-                            device=sound_device, callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
-            while not cancel_flag():
-                if len(buffer) < sample_rate * frame_duration // 1000:
-                    continue
-
-                frame = buffer[:sample_rate * frame_duration // 1000]
-                buffer = buffer[sample_rate * frame_duration // 1000:]
-                
-                if not cancel_flag():
-                    if recording_mode == 'press_to_toggle':
-                        if len(recording) > 0 and keyboard.is_pressed(activation_key):
-                            break
-                        else:
-                            recording.extend(frame)
-                    if recording_mode == 'hold_to_record':
-                        if keyboard.is_pressed(activation_key):
-                            recording.extend(frame)
-                        else:
-                            break
-                    elif recording_mode == 'voice_activity_detection':
-                        is_speech = vad.is_speech(np.array(frame).tobytes(), sample_rate)
-                        if is_speech:
-                            recording.extend(frame)
-                            num_silent_frames = 0
-                        else:
-                            if len(recording) > 0:
-                                num_silent_frames += 1
-                            if num_silent_frames >= num_silence_frames:
-                                break
-
-        if cancel_flag():
-            status_queue.put(('cancel', ''))
-            return ''
-        
-        audio_data = np.array(recording, dtype=np.int16)
-        print('Recording finished. Size:', audio_data.size) if config['print_to_terminal'] else ''
-        
-        # Save the recorded audio as a temporary WAV file on disk
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
-            with wave.open(temp_audio_file.name, 'wb') as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)  # 2 bytes (16 bits) per sample
-                wf.setframerate(sample_rate)
-                wf.writeframes(audio_data.tobytes())
-                
-        return temp_audio_file.name
-    
-    except Exception as e:
-        traceback.print_exc()
-        status_queue.put(('error', 'Error'))
-        return ''  
 
 """
 Apply post-processing to the transcription.
@@ -151,46 +70,33 @@ Apply post-processing to the transcription.
 def post_process_transcription(transcription, config=None):
     transcription = transcription.strip()
     if config:
-        if config['remove_trailing_period'] and transcription.endswith('.'):
+        if config['post_processing']['remove_trailing_period'] and transcription.endswith('.'):
             transcription = transcription[:-1]
-        if config['add_trailing_space']:
+        if config['post_processing']['add_trailing_space']:
             transcription += ' '
-        if config['remove_capitalization']:
+        if config['post_processing']['remove_capitalization']:
             transcription = transcription.lower()
     
-    print('Post-processed transcription:', transcription) if config['print_to_terminal'] else ''
+    print('Post-processed transcription:', transcription) if config['misc']['print_to_terminal'] else ''
     return transcription
 
 """
 Transcribe an audio file using the OpenAI API or a local model, depending on config.
 """
-def transcribe(status_queue, cancel_flag, config, audio_file, local_model=None):
+def transcribe(config, audio_file, local_model=None):
     if not audio_file:
         return ''
     
-    status_queue.put(('transcribing', 'Transcribing...'))
-    print('Transcribing audio file...') if config['print_to_terminal'] else ''
-    
     # If configured, transcribe the temporary audio file using the OpenAI API
-    if config['use_api']:
+    if config['model_options']['use_api']:
         transcription = transcribe_api(config, audio_file)
         
     # Otherwise, transcribe the temporary audio file using a local model
-    elif not config['use_api']:
+    elif not config['model_options']['use_api']:
         transcription = transcribe_local(config, audio_file, local_model)
         
     else:
         return ''
     
-    print('Transcription:', transcription) if config['print_to_terminal'] else ''
+    print('Transcription:', transcription) if config['misc']['print_to_terminal'] else ''
     return post_process_transcription(transcription, config)
-
-"""
-Record audio from the microphone and transcribe it using the OpenAI API or a local model, depending on config.
-"""
-def record_and_transcribe(status_queue, cancel_flag, config, local_model=None):
-    audio_file = record(status_queue, cancel_flag, config)
-    if cancel_flag():
-        return ''
-    result = transcribe(status_queue, cancel_flag, config, audio_file, local_model)
-    return result

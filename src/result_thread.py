@@ -4,58 +4,60 @@ import sounddevice as sd
 import tempfile
 import wave
 import webrtcvad
-import time
 from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+
+from transcription import transcribe
+
 
 class ResultThread(QThread):
     statusSignal = pyqtSignal(str)
     resultSignal = pyqtSignal(str)
 
-    def __init__(self, config):
+    def __init__(self, config, local_model=None):
         super().__init__()
         self.config = config
         self.recording_mode = config['recording_options']['recording_mode']
+        self.local_model = local_model
         self.is_recording = False
+        self.recording = []
         self.mutex = QMutex()
 
-    def activation_key_pressed(self):
-        print("Activation key pressed")
+    """
+    Toggle recording off.
+    """
+    def stop_recording(self):
         self.mutex.lock()
-        try:
-            if self.recording_mode == 'press_to_toggle' and self.is_recording:
-                self.is_recording = False
-            elif not self.is_recording:
-                self.is_recording = True
-                self.start()
-        finally:
-            self.mutex.unlock()
+        self.is_recording = False
+        self.mutex.unlock()
 
-    def activation_key_released(self):
-        print("Activation key released")
-        self.mutex.lock()
-        try:
-            if self.recording_mode == 'hold_to_record' and self.is_recording:
-                self.is_recording = False
-        finally:
-            self.mutex.unlock()
-
+    """
+    Run the thread to record audio, transcribe it, and emit the result.
+    """
     def run(self):
         try:
+            self.is_recording = True
             self.statusSignal.emit('recording')
             print('Recording...') if self.config['misc']['print_to_terminal'] else ''
             audio_file = self.record()
         
             self.statusSignal.emit('transcribing')
             print('Transcribing...') if self.config['misc']['print_to_terminal'] else ''
-            time.sleep(2)  # Simulate transcription duration
             
-            self.resultSignal.emit(audio_file)
+            result = transcribe(self.config, audio_file, self.local_model)
+            
+            self.resultSignal.emit(result)
             self.statusSignal.emit('idle')
         except Exception as e:
             traceback.print_exc()
             self.statusSignal.emit('error')
             self.resultSignal.emit('')
-        
+        finally:
+            self.stop_recording()
+    
+    """
+    Record audio from the microphone (sound_device). Recording stops when the activation_key is pressed (press_to_toggle),
+    released (hold_to_record), or after silence_duration (voice_activity_detection).
+    """
     def record(self):
         sound_device = self.config['recording_options']['sound_device'] or None
         sample_rate = self.config['recording_options']['sample_rate'] or 16000
@@ -66,7 +68,7 @@ class ResultThread(QThread):
 
         vad = webrtcvad.Vad(3)  # Aggressiveness mode: 3 (highest)
         buffer = []
-        recording = []
+        self.recording = []
         num_silent_frames = 0
         num_buffer_frames = buffer_duration // frame_duration
         num_silence_frames = silence_duration // frame_duration
@@ -90,10 +92,10 @@ class ResultThread(QThread):
                 if recording_mode == 'voice_activity_detection':
                     is_speech = vad.is_speech(np.array(frame).tobytes(), sample_rate)
                     if is_speech:
-                        recording.extend(frame)
+                        self.recording.extend(frame)
                         num_silent_frames = 0
                     else:
-                        if len(recording) > 0:
+                        if len(self.recording) > 0:
                             num_silent_frames += 1
                         if num_silent_frames >= num_silence_frames:
                             self.mutex.lock()
@@ -101,9 +103,9 @@ class ResultThread(QThread):
                             self.mutex.unlock()
                             break
                 else:
-                    recording.extend(frame)
+                    self.recording.extend(frame)
         
-        audio_data = np.array(recording, dtype=np.int16)
+        audio_data = np.array(self.recording, dtype=np.int16)
         print('Recording finished. Size:', audio_data.size) if self.config['misc']['print_to_terminal'] else ''
         
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
