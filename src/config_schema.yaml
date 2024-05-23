@@ -1,10 +1,11 @@
-# Configuration options for transcription models
+# Configuration options for the Whisper models
 model_options:
   use_api:
     value: false
     type: bool
-    description: "Set to true to use the OpenAI API for transcription. Set to false to use a local Whisper model."
+    description: "Toggle to choose whether to use the OpenAI API or a local Whisper model for transcription."
   
+  # Common configuration options for both API and local models
   common:
     language:
       value: null
@@ -17,8 +18,9 @@ model_options:
     initial_prompt:
       value: null
       type: str
-      description: "A string used as an initial prompt to condition the transcription."
+      description: "A string used as an initial prompt to condition the transcription. More info: https://platform.openai.com/docs/guides/speech-to-text/prompting"
 
+  # Configuration options for the OpenAI API
   api:
     model:
       value: whisper-1
@@ -31,28 +33,29 @@ model_options:
       type: str
       description: "The base URL for the API. Can be changed to use a local API endpoint."
 
+  # Configuration options for the faster-whisper model
   local:
     model:
       value: base
       type: str
-      description: "The model to use for transcription. See available models and languages."
+      description: "The model to use for transcription. The larger models provide better accuracy but are slower."
       options:
-        - 'base'
-        - 'base.en'
-        - 'tiny'
-        - 'tiny.en'
-        - 'small'
-        - 'small.en'
-        - 'medium'
-        - 'medium.en'
-        - 'large'
-        - 'large-v1'
-        - 'large-v2'
-        - 'large-v3'
+        - base
+        - base.en
+        - tiny
+        - tiny.en
+        - small
+        - small.en
+        - medium
+        - medium.en
+        - large
+        - large-v1
+        - large-v2
+        - large-v3
     device:
       value: auto
       type: str
-      description: "The device to run the local Whisper model on. Options include 'cuda' for NVIDIA GPUs, 'cpu' for CPU-only processing, or 'auto' to let the system automatically choose the best available device."
+      description: "The device to run the local Whisper model on. Use 'cuda' for NVIDIA GPUs, 'cpu' for CPU-only processing, or 'auto' to let the system automatically choose the best available device."
       options:
         - auto
         - cuda
@@ -79,11 +82,11 @@ recording_options:
   activation_key:
     value: ctrl+shift+space
     type: str
-    description: "The keyboard shortcut to activate the recording and transcribing process."
+    description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
   recording_mode:
     value: voice_activity_detection
     type: str
-    description: "The recording mode to use."
+    description: "The recording mode to use. 'voice_activity_detection' records until a pause in speech is detected, 'press_to_toggle' records until the activation key is pressed again, and 'hold_to_record' records while the activation key is held down."
     options:
       - voice_activity_detection
       - press_to_toggle
@@ -91,7 +94,7 @@ recording_options:
   sound_device:
     value: null
     type: str
-    description: "The sound device to use for recording. To find device numbers, run `python -m sounddevice`"
+    description: "The numeric index of the sound device to use for recording. To find device numbers, run `python -m sounddevice`"
   sample_rate:
     value: 16000
     type: int
@@ -114,7 +117,7 @@ post_processing:
   add_trailing_space:
     value: true
     type: bool
-    description: "Set to true to add a trailing space to the transcribed text."
+    description: "Set to true to add a space to the end of the transcribed text."
   remove_capitalization:
     value: false
     type: bool

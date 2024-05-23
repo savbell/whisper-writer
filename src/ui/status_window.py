@@ -39,6 +39,20 @@ class StatusWindow(BaseWindow):
         status_layout.addStretch(1)
 
         self.main_layout.addLayout(status_layout)
+        
+    def show(self):
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.geometry()
+            screen_width = screen_geometry.width()
+            screen_height = screen_geometry.height()
+            window_width = self.width()
+            window_height = self.height()
+
+            x = (screen_width - window_width) // 2
+            y = screen_height - window_height - 120
+
+            self.move(x, y)
+            super().show()
 
     @pyqtSlot(str)
     def updateStatus(self, status):

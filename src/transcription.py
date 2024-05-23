@@ -9,6 +9,7 @@ import torch
 Create a local model using the faster_whisper library.
 """
 def create_local_model(config):
+    print('Creating local model...') if config['misc']['print_to_terminal'] else ''
     local_model_options = config['model_options']['local']
     if torch.cuda.is_available() and local_model_options['device'] != 'cpu':
         try:
@@ -26,7 +27,7 @@ def create_local_model(config):
         model = WhisperModel(local_model_options['model'], 
                              device='cpu',
                              compute_type=local_model_options['compute_type'])
-    
+    print('Local model created.') if config['misc']['print_to_terminal'] else ''    
     return model
 
 """
@@ -34,9 +35,7 @@ Transcribe an audio file using a local model.
 """
 def transcribe_local(config, temp_audio_file, local_model=None):
     if not local_model:
-        print('Creating local model...') if config['misc']['print_to_terminal'] else ''
         local_model = create_local_model(config)
-        print('Local model created.') if config['misc']['print_to_terminal'] else ''
     model_options = config['model_options']
     response = local_model.transcribe(audio=temp_audio_file,
                                         language=model_options['common']['language'],

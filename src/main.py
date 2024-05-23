@@ -4,7 +4,7 @@ import time
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction
 
 from key_listener import KeyListener
 from result_thread import ResultThread
@@ -41,7 +41,31 @@ class WhisperWriterApp:
         if not self.config['misc']['hide_status_window']:
             self.status_window = StatusWindow()
         
+        self.create_tray_icon()
         self.main_window.show()
+        
+    def create_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(QIcon(os.path.join('assets', 'ww-logo.png')), self.app)
+        
+        tray_menu = QMenu()
+        
+        show_action = QAction('WhisperWriter Main Menu', self.app)
+        show_action.triggered.connect(self.main_window.show)
+        tray_menu.addAction(show_action)
+        
+        settings_action = QAction('Open Settings', self.app)
+        settings_action.triggered.connect(self.settings_window.show)
+        tray_menu.addAction(settings_action)
+        
+        exit_action = QAction('Exit', self.app)
+        exit_action.triggered.connect(self.exit_app)
+        tray_menu.addAction(exit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+    def exit_app(self):
+        QApplication.quit()
 
     def activation_key_pressed(self):
         if self.result_thread and self.result_thread.isRunning():
