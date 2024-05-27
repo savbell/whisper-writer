@@ -12,7 +12,7 @@ class BaseWindow(QMainWindow):
 
     def initUI(self, title, width, height):
         self.setWindowTitle(title)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFixedSize(width, height)
 

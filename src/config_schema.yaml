@@ -88,10 +88,11 @@ recording_options:
     type: str
     description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
   recording_mode:
-    value: voice_activity_detection
+    value: continuous
     type: str
     description: "The recording mode to use. 'voice_activity_detection' records until a pause in speech is detected, 'press_to_toggle' records until the activation key is pressed again, and 'hold_to_record' records while the activation key is held down."
     options:
+      - continuous
       - voice_activity_detection
       - press_to_toggle
       - hold_to_record

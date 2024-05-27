@@ -1,5 +1,3 @@
-import os
-from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from openai import OpenAI
 import torch
@@ -49,7 +47,6 @@ def transcribe_local(config, temp_audio_file, local_model=None):
 Transcribe an audio file using the OpenAI API.
 """
 def transcribe_api(config, temp_audio_file):
-    load_dotenv()
     client = OpenAI(
         api_key=config['model_options']['api']['api_key'] or None,
         base_url=config['model_options']['api']['base_url'] or 'https://api.openai.com/v1'

@@ -9,6 +9,7 @@ from ui.base_window import BaseWindow
 
 class StatusWindow(BaseWindow):
     statusSignal = pyqtSignal(str)
+    closeSignal = pyqtSignal()
 
     def __init__(self):
         super().__init__('WhisperWriter Status', 320, 120)
@@ -53,6 +54,10 @@ class StatusWindow(BaseWindow):
 
         self.move(x, y)
         super().show()
+        
+    def closeEvent(self, event):
+        self.closeSignal.emit()
+        super().closeEvent(event)
 
     @pyqtSlot(str)
     def updateStatus(self, status):

@@ -44,6 +44,9 @@ class WhisperWriterApp:
         self.create_tray_icon()
         self.main_window.show()
         
+    """
+    Create the system tray icon and its context menu.
+    """
     def create_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(QIcon(os.path.join('assets', 'ww-logo.png')), self.app)
         
@@ -64,40 +67,81 @@ class WhisperWriterApp:
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
+    """
+    Exit the application.
+    """
     def exit_app(self):
         QApplication.quit()
 
+    """
+    When the activation key is pressed, start the result thread to record audio and transcribe it.
+    Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
+    """
     def activation_key_pressed(self):
         if self.result_thread and self.result_thread.isRunning():
             if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
                 self.result_thread.stop_recording()
+            elif self.config['recording_options']['recording_mode'] == 'continuous':
+                self.stop_result_thread()
             return
+            
+        self.start_result_thread()
 
-        self.result_thread = ResultThread(self.config, self.local_model)
-        if not self.config['misc']['hide_status_window']:
-            self.result_thread.statusSignal.connect(self.status_window.updateStatus)
-        self.result_thread.resultSignal.connect(self.on_transcription_complete)
-        self.result_thread.start()
-
+    """
+    When the activation key is released, stop the recording if the recording mode is hold_to_record.
+    """
     def activation_key_released(self):
         if self.config['recording_options']['recording_mode'] == 'hold_to_record':
             if self.result_thread and self.result_thread.isRunning():
                 self.result_thread.stop_recording()
 
+    """
+    Start the result thread to record audio and transcribe it.
+    """
+    def start_result_thread(self):
+        if self.result_thread and self.result_thread.isRunning():
+            return
+        
+        self.result_thread = ResultThread(self.config, self.local_model)
+        if not self.config['misc']['hide_status_window']:
+            self.result_thread.statusSignal.connect(self.status_window.updateStatus)
+            self.status_window.closeSignal.connect(self.stop_result_thread)
+        self.result_thread.resultSignal.connect(self.on_transcription_complete)
+        self.result_thread.start()
+        
+    """
+    Stop the result thread.
+    """
+    def stop_result_thread(self):
+        if self.result_thread and self.result_thread.isRunning():
+            self.result_thread.stop()
+
+    """
+    When the transcription is complete, type the result and start listening for the activation key again.
+    """
     def on_transcription_complete(self, result):
         self.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
         
         if self.config['misc']['noise_on_completion']:
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
         
-        self.key_listener.start_listening()
-        
+        if self.config['recording_options']['recording_mode'] == 'continuous':
+            self.start_result_thread()
+        else:
+            self.key_listener.start_listening()
+    
+    """
+    Type the given text with the given interval between each key press.
+    """
     def typewrite(self, text, interval):
         for letter in text:
             self.keyboard.press(letter)
             self.keyboard.release(letter)
             time.sleep(interval)
 
+    """
+    Start the application.
+    """
     def run(self):
         sys.exit(self.app.exec_())
 
