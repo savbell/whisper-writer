@@ -1,146 +1,177 @@
-import json
 import os
-import queue
-import threading
+import sys
 import time
-import keyboard
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
-from transcription import create_local_model, record_and_transcribe
-from status_window import StatusWindow
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox
 
-class ResultThread(threading.Thread):
-    def __init__(self, *args, **kwargs):
-        super(ResultThread, self).__init__(*args, **kwargs)
-        self.result = None
-        self.stop_transcription = False
+from key_listener import KeyListener
+from result_thread import ResultThread
+from ui.main_window import MainWindow
+from ui.settings_window import SettingsWindow
+from ui.status_window import StatusWindow
+from utils import load_config_schema, load_config_values
+from transcription import create_local_model
+
+
+class WhisperWriterApp:
+    def __init__(self):
+        """
+        Initialize the application, opening settings window if no configuration file is found.
+        """
+        self.app = QApplication(sys.argv)
+        self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
+        
+        schema = load_config_schema()
+        self.config = load_config_values(schema)
+        
+        self.settings_window = SettingsWindow(schema)
+        self.settings_window.settingsClosed.connect(self.on_settings_closed)
+        
+        if os.path.exists(os.path.join('src', 'config.yaml')):
+            self.initialize_components()
+        else:
+            print('No configuration file found. Opening settings window...')
+            self.settings_window.show()
+
+    def initialize_components(self):
+        """
+        Initialize the components of the application.
+        """
+        self.key_listener = KeyListener(self.config)
+        self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
+        self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
+        
+        self.local_model = create_local_model(self.config) if not self.config['model_options']['use_api'] else None
+        
+        self.result_thread = None
+        self.keyboard = Controller()
+        
+        self.main_window = MainWindow()
+        self.main_window.openSettings.connect(self.settings_window.show)
+        self.main_window.startListening.connect(self.key_listener.start_listening)
+        
+        if not self.config['misc']['hide_status_window']:
+            self.status_window = StatusWindow()
+        
+        self.create_tray_icon()
+        self.main_window.show()
+        
+    def create_tray_icon(self):
+        """
+        Create the system tray icon and its context menu.
+        """
+        self.tray_icon = QSystemTrayIcon(QIcon(os.path.join('assets', 'ww-logo.png')), self.app)
+        
+        tray_menu = QMenu()
+        
+        show_action = QAction('WhisperWriter Main Menu', self.app)
+        show_action.triggered.connect(self.main_window.show)
+        tray_menu.addAction(show_action)
+        
+        settings_action = QAction('Open Settings', self.app)
+        settings_action.triggered.connect(self.settings_window.show)
+        tray_menu.addAction(settings_action)
+        
+        exit_action = QAction('Exit', self.app)
+        exit_action.triggered.connect(self.exit_app)
+        tray_menu.addAction(exit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+    def exit_app(self):
+        """
+        Exit the application.
+        """
+        QApplication.quit()
+
+    def on_settings_closed(self):
+        """
+        If settings is closed without saving on first run, initialize the components with default values.
+        """
+        if not os.path.exists(os.path.join('src', 'config.yaml')):
+            QMessageBox.information(
+                self.settings_window, 
+                'Using Default Values',
+                'Settings closed without saving. Default values are being used.'
+            )
+            self.initialize_components()
+
+    def activation_key_pressed(self):
+        """
+        When the activation key is pressed, start the result thread to record audio and transcribe it.
+        Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
+        """
+        if self.result_thread and self.result_thread.isRunning():
+            if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
+                self.result_thread.stop_recording()
+            elif self.config['recording_options']['recording_mode'] == 'continuous':
+                self.stop_result_thread()
+            return
+            
+        self.start_result_thread()
+
+    def activation_key_released(self):
+        """
+        When the activation key is released, stop the recording if the recording mode is hold_to_record.
+        """
+        if self.config['recording_options']['recording_mode'] == 'hold_to_record':
+            if self.result_thread and self.result_thread.isRunning():
+                self.result_thread.stop_recording()
+
+    def start_result_thread(self):
+        """
+        Start the result thread to record audio and transcribe it.
+        """
+        if self.result_thread and self.result_thread.isRunning():
+            return
+        
+        self.result_thread = ResultThread(self.config, self.local_model)
+        if not self.config['misc']['hide_status_window']:
+            self.result_thread.statusSignal.connect(self.status_window.updateStatus)
+            self.status_window.closeSignal.connect(self.stop_result_thread)
+        self.result_thread.resultSignal.connect(self.on_transcription_complete)
+        self.result_thread.start()
+        
+    def stop_result_thread(self):
+        """
+        Stop the result thread.
+        """
+        if self.result_thread and self.result_thread.isRunning():
+            self.result_thread.stop()
+
+    def on_transcription_complete(self, result):
+        """
+        When the transcription is complete, type the result and start listening for the activation key again.
+        """
+        self.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
+        
+        if self.config['misc']['noise_on_completion']:
+            AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
+        
+        if self.config['recording_options']['recording_mode'] == 'continuous':
+            self.start_result_thread()
+        else:
+            self.key_listener.start_listening()
+    
+    def typewrite(self, text, interval):
+        """
+        Type the given text with the given interval between each key press.
+        """
+        for letter in text:
+            self.keyboard.press(letter)
+            self.keyboard.release(letter)
+            time.sleep(interval)
 
     def run(self):
-        self.result = self._target(*self._args, cancel_flag=lambda: self.stop_transcription, **self._kwargs)
-
-    def stop(self):
-        self.stop_transcription = True
-
-def load_config_with_defaults():
-    default_config = {
-        'use_api': False,
-        'api_options': {
-            'model': 'whisper-1',
-            'language': None,
-            'temperature': 0.0,
-            'initial_prompt': None
-        },
-        'local_model_options': {
-            'model': 'base',
-            'device': 'auto',
-            'compute_type': 'auto',
-            'language': None,
-            'temperature': 0.0,
-            'initial_prompt': None,
-            'condition_on_previous_text': True,
-            'vad_filter': False,
-        },
-        'activation_key': 'ctrl+shift+space',
-        'recording_mode': 'voice_activity_detection', # 'voice_activity_detection', 'press_to_toggle', or 'hold_to_record'
-        'sound_device': None,
-        'sample_rate': 16000,
-        'silence_duration': 900,
-        'writing_key_press_delay': 0.008,
-        'noise_on_completion': False,
-        'remove_trailing_period': True,
-        'add_trailing_space': False,
-        'remove_capitalization': False,
-        'print_to_terminal': True,
-        'hide_status_window': False
-    }
-
-    config_path = os.path.join('src', 'config.json')
-    if os.path.isfile(config_path):
-        with open(config_path, 'r') as config_file:
-            user_config = json.load(config_file)
-            for key, value in user_config.items():
-                if key in default_config and value is not None:
-                    default_config[key] = value
-
-    return default_config
-
-def clear_status_queue():
-    while not status_queue.empty():
-        try:
-            status_queue.get_nowait()
-        except queue.Empty:
-            break
-
-def on_shortcut():
-    global status_queue, local_model
-    clear_status_queue()
-
-    status_queue.put(('recording', 'Recording...'))
-    recording_thread = ResultThread(target=record_and_transcribe, 
-                                    args=(status_queue,),
-                                    kwargs={'config': config,
-                                            'local_model': local_model if local_model and not config['use_api'] else None},)
-    
-    if not config['hide_status_window']:
-        status_window = StatusWindow(status_queue)
-        status_window.recording_thread = recording_thread
-        status_window.start()
-    
-    recording_thread.start()
-    recording_thread.join()
-    
-    if not config['hide_status_window']:
-        if status_window.is_alive():
-            status_queue.put(('cancel', ''))
-
-    transcribed_text = recording_thread.result
-
-    if transcribed_text:
-        typewrite(transcribed_text, interval=config['writing_key_press_delay'])
-
-    if config['noise_on_completion']:
-        AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
-
-def format_keystrokes(key_string):
-    return '+'.join(word.capitalize() for word in key_string.split('+'))
-
-def typewrite(text, interval):
-    for letter in text:
-        pyinput_keyboard.press(letter)
-        pyinput_keyboard.release(letter)
-        time.sleep(interval)
+        """
+        Start the application.
+        """
+        sys.exit(self.app.exec_())
 
 
-# Main script
-
-config = load_config_with_defaults()
-
-model_method = 'OpenAI\'s API' if config['use_api'] else 'a local model'
-print(f'Script activated. Whisper is set to run using {model_method}. To change this, modify the "use_api" value in the src\\config.json file.')
-
-# Set up local model if needed
-local_model = None
-if not config['use_api']:
-    print('Creating local model...')
-    local_model = create_local_model(config)
-    print('Local model created.')
-
-print(f'WhisperWriter is set to record using {config["recording_mode"]}. To change this, modify the "recording_mode" value in the src\\config.json file.')
-print(f'The activation key combo is set to {format_keystrokes(config["activation_key"])}.', end='')
-if config['recording_mode'] == 'voice_activity_detection':
-    print(' When it is pressed, recording will start, and will stop when you stop speaking.')
-elif config['recording_mode'] == 'press_to_toggle':
-    print(' When it is pressed, recording will start, and will stop when you press the key combo again.')
-elif config['recording_mode'] == 'hold_to_record':
-    print(' When it is pressed, recording will start, and will stop when you release the key combo.')
-print('Press Ctrl+C on the terminal window to quit.')
-
-# Set up status window and keyboard listener
-status_queue = queue.Queue()
-pyinput_keyboard = Controller()
-keyboard.add_hotkey(config['activation_key'], on_shortcut)
-try:
-    keyboard.wait()  # Keep the script running to listen for the shortcut
-except KeyboardInterrupt:
-    print('\nExiting the script...')
-    os.system('exit')
+if __name__ == '__main__':
+    app = WhisperWriterApp()
+    app.run()
