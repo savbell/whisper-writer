@@ -12,10 +12,16 @@ class MainWindow(BaseWindow):
     startListening = pyqtSignal()
 
     def __init__(self):
+        """
+        Initialize the main window.
+        """
         super().__init__('WhisperWriter', 320, 180)
         self.initMainUI()
 
     def initMainUI(self):
+        """
+        Initialize the main user interface.
+        """
         start_btn = QPushButton('Start')
         start_btn.setFont(QFont('Segoe UI', 10))
         start_btn.setFixedSize(120, 60)
@@ -37,9 +43,15 @@ class MainWindow(BaseWindow):
         self.main_layout.addStretch(1)
         
     def closeEvent(self, event):
+        """
+        Close the application when the main window is closed.
+        """
         QApplication.quit()
         
     def startPressed(self):
+        """
+        Emit the startListening signal when the start button is pressed.
+        """
         self.startListening.emit()
         self.hide()
 

@@ -5,7 +5,7 @@ import sounddevice as sd
 import tempfile
 import wave
 import webrtcvad
-from PyQt5.QtCore import QThread, pyqtSignal, QMutex
+from PyQt5.QtCore import QThread, QMutex, pyqtSignal
 
 from transcription import transcribe
 
@@ -15,6 +15,9 @@ class ResultThread(QThread):
     resultSignal = pyqtSignal(str)
 
     def __init__(self, config, local_model=None):
+        """
+        Initialize the result thread.
+        """
         super().__init__()
         self.config = config
         self.recording_mode = config['recording_options']['recording_mode']
@@ -25,11 +28,17 @@ class ResultThread(QThread):
         self.mutex = QMutex()
 
     def stop_recording(self):
+        """
+        Toggle recording off.
+        """
         self.mutex.lock()
         self.is_recording = False
         self.mutex.unlock()
 
     def stop(self):
+        """
+        Stop the result thread.
+        """
         self.mutex.lock()
         self.is_running = False
         self.mutex.unlock()
@@ -37,6 +46,9 @@ class ResultThread(QThread):
         self.wait()
 
     def run(self):
+        """
+        Run the thread to record audio, transcribe it, and emit the result.
+        """
         try:
             while self.is_running:
                 if not self.is_running:
@@ -64,6 +76,10 @@ class ResultThread(QThread):
             self.stop_recording()
     
     def record(self):
+        """
+        Record audio from the microphone (sound_device). Recording stops when the activation_key is pressed (press_to_toggle),
+        released (hold_to_record), or after silence_duration (continuous or voice_activity_detection).
+        """
         sound_device = self.config['recording_options']['sound_device'] or None
         sample_rate = self.config['recording_options']['sample_rate'] or 16000
         frame_duration = 30  # 30ms, supported values: 10, 20, 30

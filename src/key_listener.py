@@ -6,6 +6,9 @@ class KeyListener(QThread):
     activationKeyReleased = pyqtSignal()
 
     def __init__(self, config):
+        """
+        Initialize the key listener.
+        """
         super().__init__()
         self.config = config
         self.required_keys = set(config['recording_options']['activation_key'].split('+'))
@@ -13,10 +16,10 @@ class KeyListener(QThread):
         self.is_key_pressed = False
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
 
-    """
-    Check if the required keys are pressed and emit the activationKeyPressed signal.
-    """
     def on_press(self, key):
+        """
+        Check if the required keys are pressed and emit the activationKeyPressed signal.
+        """
         if not self.is_key_pressed:
             self.pressed_keys.add(self.get_key_name(key))
             
@@ -24,20 +27,20 @@ class KeyListener(QThread):
                 self.is_key_pressed = True
                 self.activationKeyPressed.emit()
 
-    """
-    Check if the required keys are released and emit the activationKeyReleased signal.
-    """
     def on_release(self, key):
+        """
+        Check if the required keys are released and emit the activationKeyReleased signal.
+        """
         self.pressed_keys.discard(self.get_key_name(key))
         
         if not self.required_keys.issubset(self.pressed_keys) and self.is_key_pressed:
             self.is_key_pressed = False
             self.activationKeyReleased.emit()
     
-    """
-    Get the key name from the key object.
-    """
     def get_key_name(self, key):
+        """
+        Get the key name from the key object.
+        """
         if key in (keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
             return 'ctrl'
         elif key in (keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r):
@@ -52,10 +55,10 @@ class KeyListener(QThread):
             return key.name
         return str(key)
     
-    """
-    Start listening for key events.
-    """
     def start_listening(self):
+        """
+        Start listening for key events.
+        """
         if self.listener and self.listener.running:
             self.listener.stop()
         

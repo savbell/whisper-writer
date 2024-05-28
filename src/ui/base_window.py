@@ -5,12 +5,18 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLay
 
 class BaseWindow(QMainWindow):
     def __init__(self, title, width, height):
+        """
+        Initialize the base window.
+        """
         super().__init__()
         self.initUI(title, width, height)
         self.setWindowPosition()
         self.is_dragging = False
 
     def initUI(self, title, width, height):
+        """
+        Initialize the user interface.
+        """
         self.setWindowTitle(title)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
@@ -38,29 +44,47 @@ class BaseWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
     def setWindowPosition(self):
+        """
+        Set the window position to the center of the screen.
+        """
         screen_geometry = QApplication.desktop().availableGeometry()
         x = (screen_geometry.width() - self.width()) // 2
         y = (screen_geometry.height() - self.height()) // 2
         self.move(x, y)
 
     def handleCloseButton(self):
+        """
+        Close the window.
+        """
         self.close()
 
     def mousePressEvent(self, event):
+        """
+        Allow the window to be moved by clicking and dragging anywhere on the window.
+        """
         if event.button() == Qt.LeftButton:
             self.is_dragging = True
             self.start_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
 
     def mouseMoveEvent(self, event):
+        """
+        Move the window when dragging.
+        """
         if Qt.LeftButton and self.is_dragging:
             self.move(event.globalPos() - self.start_position)
             event.accept()
 
     def mouseReleaseEvent(self, event):
+        """
+        Stop dragging the window.
+        """
         self.is_dragging = False
 
     def paintEvent(self, event):
+        """
+        Create a rounded rectangle with a semi-transparent white background.
+        """
         path = QPainterPath()
         path.addRoundedRect(QRectF(self.rect()), 20, 20)
         painter = QPainter(self)

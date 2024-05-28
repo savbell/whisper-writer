@@ -90,7 +90,7 @@ recording_options:
   recording_mode:
     value: continuous
     type: str
-    description: "The recording mode to use. 'voice_activity_detection' records until a pause in speech is detected, 'press_to_toggle' records until the activation key is pressed again, and 'hold_to_record' records while the activation key is held down."
+    description: "The recording mode to use. Options include continuous (auto-restart recording after pause in speech until activation key is pressed again), voice_activity_detection (stop recording after pause in speech), press_to_toggle (stop recording when activation key is pressed again), hold_to_record (stop recording when activation key is released)."
     options:
       - continuous
       - voice_activity_detection

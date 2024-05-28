@@ -17,6 +17,9 @@ from transcription import create_local_model
 
 class WhisperWriterApp:
     def __init__(self):
+        """
+        Initialize the application, opening settings window if no configuration file is found.
+        """
         self.app = QApplication(sys.argv)
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
         
@@ -32,10 +35,10 @@ class WhisperWriterApp:
             print('No configuration file found. Opening settings window...')
             self.settings_window.show()
 
-    """
-    Initialize the components of the application.
-    """
     def initialize_components(self):
+        """
+        Initialize the components of the application.
+        """
         self.key_listener = KeyListener(self.config)
         self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
         self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
@@ -55,10 +58,10 @@ class WhisperWriterApp:
         self.create_tray_icon()
         self.main_window.show()
         
-    """
-    Create the system tray icon and its context menu.
-    """
     def create_tray_icon(self):
+        """
+        Create the system tray icon and its context menu.
+        """
         self.tray_icon = QSystemTrayIcon(QIcon(os.path.join('assets', 'ww-logo.png')), self.app)
         
         tray_menu = QMenu()
@@ -78,16 +81,16 @@ class WhisperWriterApp:
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
-    """
-    Exit the application.
-    """
     def exit_app(self):
+        """
+        Exit the application.
+        """
         QApplication.quit()
 
-    """
-    If settings is closed without saving on first run, initialize the components with default values.
-    """
     def on_settings_closed(self):
+        """
+        If settings is closed without saving on first run, initialize the components with default values.
+        """
         if not os.path.exists(os.path.join('src', 'config.yaml')):
             QMessageBox.information(
                 self.settings_window, 
@@ -96,11 +99,11 @@ class WhisperWriterApp:
             )
             self.initialize_components()
 
-    """
-    When the activation key is pressed, start the result thread to record audio and transcribe it.
-    Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
-    """
     def activation_key_pressed(self):
+        """
+        When the activation key is pressed, start the result thread to record audio and transcribe it.
+        Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
+        """
         if self.result_thread and self.result_thread.isRunning():
             if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
                 self.result_thread.stop_recording()
@@ -110,18 +113,18 @@ class WhisperWriterApp:
             
         self.start_result_thread()
 
-    """
-    When the activation key is released, stop the recording if the recording mode is hold_to_record.
-    """
     def activation_key_released(self):
+        """
+        When the activation key is released, stop the recording if the recording mode is hold_to_record.
+        """
         if self.config['recording_options']['recording_mode'] == 'hold_to_record':
             if self.result_thread and self.result_thread.isRunning():
                 self.result_thread.stop_recording()
 
-    """
-    Start the result thread to record audio and transcribe it.
-    """
     def start_result_thread(self):
+        """
+        Start the result thread to record audio and transcribe it.
+        """
         if self.result_thread and self.result_thread.isRunning():
             return
         
@@ -132,17 +135,17 @@ class WhisperWriterApp:
         self.result_thread.resultSignal.connect(self.on_transcription_complete)
         self.result_thread.start()
         
-    """
-    Stop the result thread.
-    """
     def stop_result_thread(self):
+        """
+        Stop the result thread.
+        """
         if self.result_thread and self.result_thread.isRunning():
             self.result_thread.stop()
 
-    """
-    When the transcription is complete, type the result and start listening for the activation key again.
-    """
     def on_transcription_complete(self, result):
+        """
+        When the transcription is complete, type the result and start listening for the activation key again.
+        """
         self.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
         
         if self.config['misc']['noise_on_completion']:
@@ -153,19 +156,19 @@ class WhisperWriterApp:
         else:
             self.key_listener.start_listening()
     
-    """
-    Type the given text with the given interval between each key press.
-    """
     def typewrite(self, text, interval):
+        """
+        Type the given text with the given interval between each key press.
+        """
         for letter in text:
             self.keyboard.press(letter)
             self.keyboard.release(letter)
             time.sleep(interval)
 
-    """
-    Start the application.
-    """
     def run(self):
+        """
+        Start the application.
+        """
         sys.exit(self.app.exec_())
 
 

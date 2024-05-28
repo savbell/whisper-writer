@@ -12,11 +12,17 @@ class StatusWindow(BaseWindow):
     closeSignal = pyqtSignal()
 
     def __init__(self):
+        """
+        Initialize the status window.
+        """
         super().__init__('WhisperWriter Status', 320, 120)
         self.initStatusUI()
         self.statusSignal.connect(self.updateStatus)
 
     def initStatusUI(self):
+        """
+        Initialize the status user interface.
+        """
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         
         status_layout = QHBoxLayout()
@@ -42,6 +48,9 @@ class StatusWindow(BaseWindow):
         self.main_layout.addLayout(status_layout)
         
     def show(self):
+        """
+        Position the window in the bottom center of the screen and show it.
+        """
         screen = QApplication.primaryScreen()
         screen_geometry = screen.geometry()
         screen_width = screen_geometry.width()
@@ -56,11 +65,17 @@ class StatusWindow(BaseWindow):
         super().show()
         
     def closeEvent(self, event):
+        """
+        Emit the close signal when the window is closed.
+        """
         self.closeSignal.emit()
         super().closeEvent(event)
 
     @pyqtSlot(str)
     def updateStatus(self, status):
+        """
+        Update the status window based on the given status.
+        """
         if status == 'recording':
             self.icon_label.setPixmap(self.microphone_pixmap)
             self.status_label.setText('Recording...')

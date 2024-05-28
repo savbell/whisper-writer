@@ -1,10 +1,10 @@
 import yaml
 import os
 
-"""
-Loads the schema for the configuration file.
-"""
 def load_config_schema(schema_path=None):
+    """
+    Loads the schema for the configuration file.
+    """
     if schema_path is None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         schema_path = os.path.join(base_dir, 'config_schema.yaml')
@@ -13,10 +13,10 @@ def load_config_schema(schema_path=None):
         schema = yaml.safe_load(file)
     return schema
 
-"""
-Loads the values from the configuration file.
-"""
 def load_config_values(schema, config_path=os.path.join('src', 'config.yaml')):
+    """
+    Loads the values from the configuration file.
+    """
     config = {}
     for category, settings in schema.items():
         config[category] = {}
@@ -43,10 +43,10 @@ def load_config_values(schema, config_path=os.path.join('src', 'config.yaml')):
 
     return config
 
-"""
-Save the configuration to a yaml file.
-"""
 def save_config(config, config_path=os.path.join('src', 'config.yaml')):
+    """
+    Save the configuration to a yaml file.
+    """
     with open(config_path, 'w') as file:
         yaml.dump(config, file, default_flow_style=False)
         

@@ -17,6 +17,9 @@ class SettingsWindow(BaseWindow):
     settingsClosed = pyqtSignal()
     
     def __init__(self, schema):
+        """
+        Initialize the settings window.
+        """
         self.schema = schema
         self.config = load_config_values(schema)
         self.initial_config = self.config.copy()
@@ -27,6 +30,9 @@ class SettingsWindow(BaseWindow):
         self.initSettingsUI()
 
     def initSettingsUI(self):
+        """
+        Initialize the settings user interface.
+        """
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
@@ -60,6 +66,9 @@ class SettingsWindow(BaseWindow):
             self.toggle_api_local_options(self.use_api_checkbox.isChecked())
 
     def add_setting_widget(self, layout, key, meta, category, sub_category=None):
+        """
+        Add a setting widget to the layout.
+        """
         item_layout = QHBoxLayout()
 
         label = QLabel(f"{key.replace('_', ' ').capitalize()}:")
@@ -122,9 +131,15 @@ class SettingsWindow(BaseWindow):
             self.local_widgets.append((label, widget, help_button))
 
     def show_description(self, description):
+        """
+        Show a description dialog.
+        """
         QMessageBox.information(self, 'Description', description)
 
     def saveSettings(self):
+        """
+        Save the settings to the config.yaml file and API key to .env file.
+        """
         for category, settings in self.schema.items():
             for sub_category, sub_settings in settings.items():
                 if isinstance(sub_settings, dict) and 'value' in sub_settings:
@@ -154,13 +169,22 @@ class SettingsWindow(BaseWindow):
         self.restart_application()
 
     def restart_application(self):
+        """
+        Restart the application to apply the new settings.
+        """
         QCoreApplication.quit()
         QProcess.startDetached(sys.executable, sys.argv)
 
     def resetSettings(self):
+        """
+        Reset the settings to the default values.
+        """
         self.reset_to_initial_settings(self.default_config)
 
     def reset_to_initial_settings(self, config_source):
+        """
+        Reset the settings to the initial values when the window was opened.
+        """
         for category, settings in self.schema.items():
             for sub_category, sub_settings in settings.items():
                 if isinstance(sub_settings, dict) and 'value' in sub_settings:
@@ -178,6 +202,9 @@ class SettingsWindow(BaseWindow):
                         self.set_widget_value(widget, initial_value, meta.get('type'))
 
     def set_widget_value(self, widget, value, value_type):
+        """
+        Set the value of the widget.
+        """
         if isinstance(widget, QCheckBox):
             widget.setChecked(value)
         elif isinstance(widget, QComboBox):
@@ -189,6 +216,9 @@ class SettingsWindow(BaseWindow):
                 widget.setText(value)
 
     def get_widget_value(self, widget, value_type):
+        """
+        Get the value of the widget.
+        """
         if isinstance(widget, QCheckBox):
             return widget.isChecked()
         elif isinstance(widget, QComboBox):
@@ -204,6 +234,9 @@ class SettingsWindow(BaseWindow):
                 return text if text else None
 
     def toggle_api_local_options(self, use_api):
+        """
+        Toggle whether the API or local options are visible.
+        """
         for label, widget, help_button in self.api_widgets:
             label.setVisible(use_api)
             widget.setVisible(use_api)
@@ -215,6 +248,9 @@ class SettingsWindow(BaseWindow):
             help_button.setVisible(not use_api)
 
     def closeEvent(self, event):
+        """
+        Confirm before closing the settings window without saving.
+        """
         reply = QMessageBox.question(
             self,
             'Close without saving?',
