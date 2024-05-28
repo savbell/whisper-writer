@@ -1,9 +1,8 @@
 import os
 import sys
 import subprocess
-
-# Disabling output buffering so that the status window can be updated in real time
-os.environ['PYTHONUNBUFFERED'] = '1'
+from dotenv import load_dotenv
 
 print('Starting WhisperWriter...')
+load_dotenv()
 subprocess.run([sys.executable, os.path.join('src', 'main.py')])

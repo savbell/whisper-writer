@@ -1,3 +1,4 @@
+import os
 from faster_whisper import WhisperModel
 from openai import OpenAI
 import torch
@@ -48,7 +49,7 @@ Transcribe an audio file using the OpenAI API.
 """
 def transcribe_api(config, temp_audio_file):
     client = OpenAI(
-        api_key=config['model_options']['api']['api_key'] or None,
+        api_key=os.getenv('OPENAI_API_KEY') or None,
         base_url=config['model_options']['api']['base_url'] or 'https://api.openai.com/v1'
     )
     model_options = config['model_options']

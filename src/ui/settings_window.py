@@ -1,16 +1,21 @@
 import os
 import sys
+from dotenv import set_key, load_dotenv
 from PyQt5.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox,
     QMessageBox, QTabWidget, QWidget, QSizePolicy, QSpacerItem, QToolButton, QStyle
 )
-from PyQt5.QtCore import Qt, QCoreApplication, QProcess
+from PyQt5.QtCore import Qt, QCoreApplication, QProcess, pyqtSignal
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
 from utils import load_config_schema, load_config_values, save_config
 
+load_dotenv()
+
 class SettingsWindow(BaseWindow):
+    settingsClosed = pyqtSignal()
+    
     def __init__(self, schema):
         self.schema = schema
         self.config = load_config_values(schema)
@@ -80,6 +85,7 @@ class SettingsWindow(BaseWindow):
             widget = QLineEdit(current_value)
             if key == 'api_key':
                 widget.setEchoMode(QLineEdit.Password)
+                widget.setText(os.getenv('OPENAI_API_KEY') or current_value)
         elif meta_type == 'int':
             widget = QLineEdit(str(current_value))
         elif meta_type == 'float':
@@ -135,15 +141,21 @@ class SettingsWindow(BaseWindow):
                             self.config[category][sub_category] = {}
                         self.config[category][sub_category][key] = self.get_widget_value(widget, meta.get('type'))
 
+        # Save the API key to the .env file
+        api_key = self.config['model_options']['api']['api_key'] or ''
+        set_key('.env', 'OPENAI_API_KEY', api_key)
+        os.environ['OPENAI_API_KEY'] = api_key
+            
+        # Remove the API key from the config
+        self.config['model_options']['api']['api_key'] = None
+
         save_config(self.config)
         QMessageBox.information(self, 'Settings Saved', 'Settings have been saved. Restarting application...')
-        self.close()
         self.restart_application()
 
     def restart_application(self):
         QCoreApplication.quit()
         QProcess.startDetached(sys.executable, sys.argv)
-
 
     def resetSettings(self):
         self.reset_to_initial_settings(self.default_config)
@@ -191,7 +203,6 @@ class SettingsWindow(BaseWindow):
             else:
                 return text if text else None
 
-
     def toggle_api_local_options(self, use_api):
         for label, widget, help_button in self.api_widgets:
             label.setVisible(use_api)
@@ -204,8 +215,20 @@ class SettingsWindow(BaseWindow):
             help_button.setVisible(not use_api)
 
     def closeEvent(self, event):
-        self.reset_to_initial_settings(self.initial_config)
-        super().closeEvent(event)
+        reply = QMessageBox.question(
+            self,
+            'Close without saving?',
+            'Are you sure you want to close without saving?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.reset_to_initial_settings(self.initial_config)
+            self.settingsClosed.emit()
+            super().closeEvent(event)
+        else:
+            event.ignore()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

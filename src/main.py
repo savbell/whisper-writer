@@ -4,7 +4,7 @@ import time
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox
 
 from key_listener import KeyListener
 from result_thread import ResultThread
@@ -24,7 +24,18 @@ class WhisperWriterApp:
         self.config = load_config_values(schema)
         
         self.settings_window = SettingsWindow(schema)
+        self.settings_window.settingsClosed.connect(self.on_settings_closed)
         
+        if os.path.exists(os.path.join('src', 'config.yaml')):
+            self.initialize_components()
+        else:
+            print('No configuration file found. Opening settings window...')
+            self.settings_window.show()
+
+    """
+    Initialize the components of the application.
+    """
+    def initialize_components(self):
         self.key_listener = KeyListener(self.config)
         self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
         self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
@@ -72,6 +83,18 @@ class WhisperWriterApp:
     """
     def exit_app(self):
         QApplication.quit()
+
+    """
+    If settings is closed without saving on first run, initialize the components with default values.
+    """
+    def on_settings_closed(self):
+        if not os.path.exists(os.path.join('src', 'config.yaml')):
+            QMessageBox.information(
+                self.settings_window, 
+                'Using Default Values',
+                'Settings closed without saving. Default values are being used.'
+            )
+            self.initialize_components()
 
     """
     When the activation key is pressed, start the result thread to record audio and transcribe it.
