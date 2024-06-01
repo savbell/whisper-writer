@@ -53,6 +53,7 @@ class ResultThread(QThread):
             while self.is_running:
                 if not self.is_running:
                     break
+                
                 self.is_recording = True
                 self.statusSignal.emit('recording')
                 print('Recording...') if self.config['misc']['print_to_terminal'] else ''
@@ -65,6 +66,9 @@ class ResultThread(QThread):
                 print('Transcribing...') if self.config['misc']['print_to_terminal'] else ''
                 
                 result = transcribe(self.config, audio_file, self.local_model)
+                
+                if not self.is_running:
+                    break
                 
                 self.statusSignal.emit('idle')
                 self.resultSignal.emit(result)
