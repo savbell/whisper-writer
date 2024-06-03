@@ -50,28 +50,27 @@ class ResultThread(QThread):
         Run the thread to record audio, transcribe it, and emit the result.
         """
         try:
-            while self.is_running:
-                if not self.is_running:
-                    break
-                
-                self.is_recording = True
-                self.statusSignal.emit('recording')
-                print('Recording...') if self.config['misc']['print_to_terminal'] else ''
-                audio_file = self.record()
+            if not self.is_running:
+                return
             
-                if not self.is_running:
-                    break
-                
-                self.statusSignal.emit('transcribing')
-                print('Transcribing...') if self.config['misc']['print_to_terminal'] else ''
-                
-                result = transcribe(self.config, audio_file, self.local_model)
-                
-                if not self.is_running:
-                    break
-                
-                self.statusSignal.emit('idle')
-                self.resultSignal.emit(result)
+            self.is_recording = True
+            self.statusSignal.emit('recording')
+            print('Recording...') if self.config['misc']['print_to_terminal'] else ''
+            audio_file = self.record()
+        
+            if not self.is_running:
+                return
+            
+            self.statusSignal.emit('transcribing')
+            print('Transcribing...') if self.config['misc']['print_to_terminal'] else ''
+            
+            result = transcribe(self.config, audio_file, self.local_model)
+            
+            if not self.is_running:
+                return
+            
+            self.statusSignal.emit('idle')
+            self.resultSignal.emit(result)
         except Exception as e:
             traceback.print_exc()
             self.statusSignal.emit('error')
