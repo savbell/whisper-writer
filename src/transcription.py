@@ -11,8 +11,13 @@ def create_local_model(config):
     print('Creating local model...') if config['misc']['print_to_terminal'] else ''
     local_model_options = config['model_options']['local']
     compute_type = local_model_options['compute_type']
-    device = local_model_options['device']
     model_path = local_model_options.get('model_path')
+
+    if compute_type == 'int8':
+        device = 'cpu'
+        print('Using int8 quantization, forcing CPU usage.') if config['misc']['print_to_terminal'] else ''
+    else:
+        device = local_model_options['device']
 
     try:
         if model_path:

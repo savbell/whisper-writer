@@ -72,6 +72,7 @@ model_options:
         - default
         - float32
         - float16
+        - int8
     condition_on_previous_text:
       value: true
       type: bool
