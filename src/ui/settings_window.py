@@ -3,7 +3,7 @@ import sys
 from dotenv import set_key, load_dotenv
 from PyQt5.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox,
-    QMessageBox, QTabWidget, QWidget, QSizePolicy, QSpacerItem, QToolButton, QStyle
+    QMessageBox, QTabWidget, QWidget, QSizePolicy, QSpacerItem, QToolButton, QStyle, QFileDialog
 )
 from PyQt5.QtCore import Qt, QCoreApplication, QProcess, pyqtSignal
 
@@ -65,6 +65,11 @@ class SettingsWindow(BaseWindow):
             self.use_api_checkbox.stateChanged.connect(self.toggle_api_local_options)
             self.toggle_api_local_options(self.use_api_checkbox.isChecked())
 
+    def browse_model_path(self, widget):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Whisper Model File", "", "Model Files (*.bin);;All Files (*)")
+        if file_path:
+            widget.setText(file_path)
+
     def add_setting_widget(self, layout, key, meta, category, sub_category=None):
         """
         Add a setting widget to the layout.
@@ -101,6 +106,12 @@ class SettingsWindow(BaseWindow):
             widget = QLineEdit(str(current_value))
         else:
             return
+        
+        if key == 'model_path':
+            widget = QLineEdit(current_value or '')
+            browse_button = QPushButton('Browse')
+            browse_button.clicked.connect(lambda: self.browse_model_path(widget))
+            item_layout.addWidget(browse_button)
 
         widget.setToolTip(meta.get('description', ''))
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)

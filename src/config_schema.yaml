@@ -80,6 +80,10 @@ model_options:
       value: false
       type: bool
       description: "Set to true to use a voice activity detection (VAD) filter to remove silence from the recording."
+    model_path:
+      value: null
+      type: str
+      description: "The path to the local Whisper model. If not specified, the default model will be downloaded."
 
 # Configuration options for activation and recording
 recording_options:

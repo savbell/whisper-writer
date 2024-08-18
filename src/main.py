@@ -43,6 +43,7 @@ class WhisperWriterApp:
         self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
         self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
         
+        model_path = self.config['model_options']['local'].get('model_path')
         self.local_model = create_local_model(self.config) if not self.config['model_options']['use_api'] else None
         
         self.result_thread = None

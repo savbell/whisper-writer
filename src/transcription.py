@@ -10,23 +10,30 @@ def create_local_model(config):
     """
     print('Creating local model...') if config['misc']['print_to_terminal'] else ''
     local_model_options = config['model_options']['local']
-    if torch.cuda.is_available() and local_model_options['device'] != 'cpu':
-        try:
+    compute_type = local_model_options['compute_type']
+    device = local_model_options['device']
+    model_path = local_model_options.get('model_path')
+
+    try:
+        if model_path:
+            print(f'Loading model from: {model_path}') if config['misc']['print_to_terminal'] else ''
+            model = WhisperModel(model_path,
+                                 device=device,
+                                 compute_type=compute_type,
+                                 download_root=None)  # Prevent automatic download
+        else:
             model = WhisperModel(local_model_options['model'],
-                                 device=local_model_options['device'],
-                                 compute_type=local_model_options['compute_type'])
-        except Exception as e:
-            print(f'Error initializing WhisperModel with CUDA: {e}') if config['misc']['print_to_terminal'] else ''
-            print('Falling back to CPU.') if config['misc']['print_to_terminal'] else ''
-            model = WhisperModel(local_model_options['model'], 
-                                 device='cpu',
-                                 compute_type=local_model_options['compute_type'])
-    else:
-        print('CUDA not available, using CPU.') if config['misc']['print_to_terminal'] else ''
-        model = WhisperModel(local_model_options['model'], 
+                                 device=device,
+                                 compute_type=compute_type)
+    except Exception as e:
+        print(f'Error initializing WhisperModel: {e}') if config['misc']['print_to_terminal'] else ''
+        print('Falling back to CPU.') if config['misc']['print_to_terminal'] else ''
+        model = WhisperModel(model_path or local_model_options['model'],
                              device='cpu',
-                             compute_type=local_model_options['compute_type'])
-    print('Local model created.') if config['misc']['print_to_terminal'] else ''    
+                             compute_type=compute_type,
+                             download_root=None if model_path else None)
+
+    print('Local model created.') if config['misc']['print_to_terminal'] else ''
     return model
 
 def transcribe_local(config, temp_audio_file, local_model=None):
