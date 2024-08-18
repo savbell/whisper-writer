@@ -112,6 +112,11 @@ class SettingsWindow(BaseWindow):
             browse_button = QPushButton('Browse')
             browse_button.clicked.connect(lambda: self.browse_model_path(widget))
             item_layout.addWidget(browse_button)
+        
+        if key == 'input_method':
+            widget = QComboBox()
+            widget.addItems(meta['options'])
+            widget.setCurrentText(current_value)
 
         widget.setToolTip(meta.get('description', ''))
         widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)

@@ -132,6 +132,14 @@ post_processing:
     value: false
     type: bool
     description: "Set to true to convert the transcribed text to lowercase."
+  input_method:
+    value: pynput
+    type: str
+    description: "The method to use for simulating keyboard input."
+    options:
+      - pynput
+      - ydotool
+      - dotool
 
 # Miscellaneous settings
 misc:

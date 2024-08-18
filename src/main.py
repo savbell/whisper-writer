@@ -13,6 +13,7 @@ from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
 from utils import load_config_schema, load_config_values
 from transcription import create_local_model
+from input_simulation import InputSimulator
 
 
 class WhisperWriterApp:
@@ -39,6 +40,7 @@ class WhisperWriterApp:
         """
         Initialize the components of the application.
         """
+        self.input_simulator = InputSimulator(self.config)
         self.key_listener = KeyListener(self.config)
         self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
         self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
@@ -86,6 +88,7 @@ class WhisperWriterApp:
         """
         Exit the application.
         """
+        self.input_simulator.cleanup()
         QApplication.quit()
 
     def on_settings_closed(self):
@@ -147,7 +150,7 @@ class WhisperWriterApp:
         """
         When the transcription is complete, type the result and start listening for the activation key again.
         """
-        self.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
+        self.input_simulator.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
         
         if self.config['misc']['noise_on_completion']:
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
@@ -156,15 +159,6 @@ class WhisperWriterApp:
             self.start_result_thread()
         else:
             self.key_listener.start_listening()
-    
-    def typewrite(self, text, interval):
-        """
-        Type the given text with the given interval between each key press.
-        """
-        for letter in text:
-            self.keyboard.press(letter)
-            self.keyboard.release(letter)
-            time.sleep(interval)
 
     def run(self):
         """
