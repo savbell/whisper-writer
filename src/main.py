@@ -11,9 +11,9 @@ from result_thread import ResultThread
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
-from utils import load_config_schema, load_config_values
 from transcription import create_local_model
 from input_simulation import InputSimulator
+from utils import ConfigManager
 
 
 class WhisperWriterApp:
@@ -23,13 +23,12 @@ class WhisperWriterApp:
         """
         self.app = QApplication(sys.argv)
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
-        
-        schema = load_config_schema()
-        self.config = load_config_values(schema)
-        
-        self.settings_window = SettingsWindow(schema)
-        self.settings_window.settingsClosed.connect(self.on_settings_closed)
-        
+
+        ConfigManager.initialize()
+
+        self.settings_window = SettingsWindow()
+        self.settings_window.settings_closed.connect(self.on_settings_closed)
+
         if os.path.exists(os.path.join('src', 'config.yaml')):
             self.initialize_components()
         else:
@@ -40,47 +39,48 @@ class WhisperWriterApp:
         """
         Initialize the components of the application.
         """
-        self.input_simulator = InputSimulator(self.config)
-        self.key_listener = KeyListener(self.config)
+        self.input_simulator = InputSimulator()
+
+        self.key_listener = KeyListener()
         self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
-        self.key_listener.activationKeyReleased.connect(self.activation_key_released) 
-        
-        model_path = self.config['model_options']['local'].get('model_path')
-        self.local_model = create_local_model(self.config) if not self.config['model_options']['use_api'] else None
-        
+        self.key_listener.activationKeyReleased.connect(self.activation_key_released)
+
+        model_options = ConfigManager.get_config_section('model_options')
+        model_path = model_options.get('local', {}).get('model_path')
+        self.local_model = create_local_model() if not model_options.get('use_api') else None
+
         self.result_thread = None
-        self.keyboard = Controller()
-        
+
         self.main_window = MainWindow()
         self.main_window.openSettings.connect(self.settings_window.show)
         self.main_window.startListening.connect(self.key_listener.start_listening)
-        
-        if not self.config['misc']['hide_status_window']:
+
+        if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.status_window = StatusWindow()
-        
+
         self.create_tray_icon()
         self.main_window.show()
-        
+
     def create_tray_icon(self):
         """
         Create the system tray icon and its context menu.
         """
         self.tray_icon = QSystemTrayIcon(QIcon(os.path.join('assets', 'ww-logo.png')), self.app)
-        
+
         tray_menu = QMenu()
-        
+
         show_action = QAction('WhisperWriter Main Menu', self.app)
         show_action.triggered.connect(self.main_window.show)
         tray_menu.addAction(show_action)
-        
+
         settings_action = QAction('Open Settings', self.app)
         settings_action.triggered.connect(self.settings_window.show)
         tray_menu.addAction(settings_action)
-        
+
         exit_action = QAction('Exit', self.app)
         exit_action.triggered.connect(self.exit_app)
         tray_menu.addAction(exit_action)
-        
+
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
@@ -97,7 +97,7 @@ class WhisperWriterApp:
         """
         if not os.path.exists(os.path.join('src', 'config.yaml')):
             QMessageBox.information(
-                self.settings_window, 
+                self.settings_window,
                 'Using Default Values',
                 'Settings closed without saving. Default values are being used.'
             )
@@ -109,19 +109,19 @@ class WhisperWriterApp:
         Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
         """
         if self.result_thread and self.result_thread.isRunning():
-            if self.config['recording_options']['recording_mode'] == 'press_to_toggle':
+            if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'press_to_toggle':
                 self.result_thread.stop_recording()
-            elif self.config['recording_options']['recording_mode'] == 'continuous':
+            elif ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
                 self.stop_result_thread()
             return
-            
+
         self.start_result_thread()
 
     def activation_key_released(self):
         """
         When the activation key is released, stop the recording if the recording mode is hold_to_record.
         """
-        if self.config['recording_options']['recording_mode'] == 'hold_to_record':
+        if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'hold_to_record':
             if self.result_thread and self.result_thread.isRunning():
                 self.result_thread.stop_recording()
 
@@ -131,14 +131,14 @@ class WhisperWriterApp:
         """
         if self.result_thread and self.result_thread.isRunning():
             return
-        
-        self.result_thread = ResultThread(self.config, self.local_model)
-        if not self.config['misc']['hide_status_window']:
+
+        self.result_thread = ResultThread(self.local_model)
+        if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.result_thread.statusSignal.connect(self.status_window.updateStatus)
             self.status_window.closeSignal.connect(self.stop_result_thread)
         self.result_thread.resultSignal.connect(self.on_transcription_complete)
         self.result_thread.start()
-        
+
     def stop_result_thread(self):
         """
         Stop the result thread.
@@ -150,12 +150,12 @@ class WhisperWriterApp:
         """
         When the transcription is complete, type the result and start listening for the activation key again.
         """
-        self.input_simulator.typewrite(result, self.config['post_processing']['writing_key_press_delay'])
-        
-        if self.config['misc']['noise_on_completion']:
+        self.input_simulator.typewrite(result)
+
+        if ConfigManager.get_config_value('misc', 'noise_on_completion'):
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
-        
-        if self.config['recording_options']['recording_mode'] == 'continuous':
+
+        if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
             self.start_result_thread()
         else:
             self.key_listener.start_listening()

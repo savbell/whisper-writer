@@ -1,17 +1,18 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 from pynput import keyboard
 
+from utils import ConfigManager
+
 class KeyListener(QThread):
     activationKeyPressed = pyqtSignal()
     activationKeyReleased = pyqtSignal()
 
-    def __init__(self, config):
+    def __init__(self):
         """
         Initialize the key listener.
         """
         super().__init__()
-        self.config = config
-        self.required_keys = set(config['recording_options']['activation_key'].split('+'))
+        self.required_keys = set(ConfigManager.get_config_value('recording_options', 'activation_key').split('+'))
         self.pressed_keys = set()
         self.is_key_pressed = False
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)

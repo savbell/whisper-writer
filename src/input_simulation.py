@@ -4,6 +4,8 @@ import signal
 import time
 from pynput.keyboard import Controller as PynputController
 
+from utils import ConfigManager
+
 def run_command_or_exit_on_failure(command):
     """
     Run a shell command and exit if it fails.
@@ -22,15 +24,11 @@ class InputSimulator:
     A class to simulate keyboard input using various methods.
     """
 
-    def __init__(self, config):
+    def __init__(self):
         """
         Initialize the InputSimulator with the specified configuration.
-
-        Args:
-            config (dict): Configuration dictionary containing input method settings.
         """
-        self.config = config
-        self.input_method = config['post_processing']['input_method']
+        self.input_method = ConfigManager.get_config_value('post_processing', 'input_method')
         self.dotool_process = None
 
         if self.input_method == 'pynput':
@@ -53,14 +51,14 @@ class InputSimulator:
             os.kill(self.dotool_process.pid, signal.SIGINT)
             self.dotool_process = None
 
-    def typewrite(self, text, interval):
+    def typewrite(self, text):
         """
         Simulate typing the given text with the specified interval between keystrokes.
 
         Args:
             text (str): The text to type.
-            interval (float): The interval between keystrokes in seconds.
         """
+        interval = ConfigManager.get_config_value('post_processing', 'writing_key_press_delay')
         if self.input_method == 'pynput':
             self._typewrite_pynput(text, interval)
         elif self.input_method == 'ydotool':
