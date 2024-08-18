@@ -6,39 +6,58 @@ import tempfile
 import wave
 import webrtcvad
 from PyQt5.QtCore import QThread, QMutex, pyqtSignal
+from collections import deque
+from threading import Event
 
 from transcription import transcribe
+from input_simulation import InputSimulator
 from utils import ConfigManager
 
 
 class ResultThread(QThread):
+    """
+    A thread class for handling audio recording, transcription, and result processing.
+
+    This class manages the entire process of:
+    1. Recording audio from the microphone
+    2. Detecting speech and silence
+    3. Saving the recorded audio to a file
+    4. Transcribing the audio
+    5. Emitting the transcription result
+
+    It uses WebRTC VAD (Voice Activity Detection) for efficient speech detection
+    and supports different recording modes like continuous recording and
+    voice activity detection.
+
+    Signals:
+        statusSignal: Emits the current status of the thread (e.g., 'recording', 'transcribing', 'idle')
+        resultSignal: Emits the transcription result
+    """
+
     statusSignal = pyqtSignal(str)
     resultSignal = pyqtSignal(str)
 
     def __init__(self, local_model=None):
         """
-        Initialize the result thread.
+        Initialize the ResultThread.
+
+        :param local_model: Local transcription model (if applicable)
         """
         super().__init__()
-        self.recording_mode = ConfigManager.get_config_value('recording_options', 'recording_mode')
         self.local_model = local_model
         self.is_recording = False
         self.is_running = True
-        self.recording = []
         self.mutex = QMutex()
+        self.input_simulator = InputSimulator()
 
     def stop_recording(self):
-        """
-        Toggle recording off.
-        """
+        """Stop the current recording session."""
         self.mutex.lock()
         self.is_recording = False
         self.mutex.unlock()
 
     def stop(self):
-        """
-        Stop the result thread.
-        """
+        """Stop the entire thread execution."""
         self.mutex.lock()
         self.is_running = False
         self.mutex.unlock()
@@ -46,25 +65,36 @@ class ResultThread(QThread):
         self.wait()
 
     def run(self):
-        """
-        Run the thread to record audio, transcribe it, and emit the result.
-        """
+        """Main execution method for the thread."""
         try:
             if not self.is_running:
                 return
 
+            self.mutex.lock()
             self.is_recording = True
+            self.mutex.unlock()
+
             self.statusSignal.emit('recording')
             ConfigManager.console_print('Recording...')
-            audio_file = self.record()
+            audio_file = self._record_audio()
 
             if not self.is_running:
+                return
+
+            if not audio_file:
+                self.statusSignal.emit('idle')
                 return
 
             self.statusSignal.emit('transcribing')
             ConfigManager.console_print('Transcribing...')
 
+            # Time the transcription process
+            start_time = time.time()
             result = transcribe(audio_file, self.local_model)
+            end_time = time.time()
+
+            transcription_time = end_time - start_time
+            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {result}')
 
             if not self.is_running:
                 return
@@ -78,70 +108,112 @@ class ResultThread(QThread):
         finally:
             self.stop_recording()
 
-    def record(self):
+    def _record_audio(self):
         """
-        Record audio from the microphone (sound_device). Recording stops when the activation_key is pressed (press_to_toggle),
-        released (hold_to_record), or after silence_duration (continuous or voice_activity_detection).
+        Record audio from the microphone and save it to a temporary file.
+
+        :return: Path to the saved audio file
         """
         recording_options = ConfigManager.get_config_section('recording_options')
-        sound_device = recording_options.get('sound_device')
         sample_rate = recording_options.get('sample_rate') or 16000
-        frame_duration = 30  # 30ms, supported values: 10, 20, 30
-        buffer_duration = 300  # 300ms
-        silence_duration = recording_options.get('silence_duration') or 900
-        recording_mode = recording_options.get('recording_mode') or 'voice_activity_detection'
+        frame_duration_ms = 30  # 30ms frame duration for WebRTC VAD
+        frame_size = int(sample_rate * (frame_duration_ms / 1000.0))
+        silence_duration_ms = recording_options.get('silence_duration') or 900
+        silence_frames = int(silence_duration_ms / frame_duration_ms)
+        # 300ms delay before starting VAD to avoid mistaking the sound of key pressing for voice
+        initial_delay = 0.3
 
-        vad = webrtcvad.Vad(2)  # Aggressiveness mode
-        buffer = []
-        self.recording = []
-        num_silent_frames = 0
-        num_buffer_frames = buffer_duration // frame_duration
-        num_silence_frames = silence_duration // frame_duration
+        vad = webrtcvad.Vad(2)  # VAD aggressiveness (0-3, 3 being the most aggressive)
 
-        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16', blocksize=sample_rate * frame_duration // 1000,
-                            device=sound_device, callback=lambda indata, frames, time, status: buffer.extend(indata[:, 0])):
-            # Short delay to allow the buffer to fill
-            time.sleep(0.5)
+        audio_buffer = deque(maxlen=frame_size)
+        recording = []
+        silent_frame_count = 0
+        data_ready = Event()
+        recording_started = False
+        start_time = time.time()
 
-            while self.is_running:
-                self.mutex.lock()
-                current_recording_state = self.is_recording
-                self.mutex.unlock()
+        def audio_callback(indata, frames, time, status):
+            if status:
+                ConfigManager.console_print(f"Audio callback status: {status}")
+            audio_buffer.extend(indata[:, 0])
+            data_ready.set()
 
-                if not current_recording_state:
-                    break
+        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16',
+                            blocksize=frame_size, device=recording_options.get('sound_device'),
+                            callback=audio_callback):
+            while self.is_running and self.is_recording:
+                data_ready.wait()
+                data_ready.clear()
 
-                if len(buffer) < sample_rate * frame_duration // 1000:
-                    continue
+                if len(audio_buffer) >= frame_size:
+                    frame = np.array(list(audio_buffer), dtype=np.int16)
+                    audio_buffer.clear()
 
-                frame = buffer[:sample_rate * frame_duration // 1000]
-                buffer = buffer[sample_rate * frame_duration // 1000:]
+                    if not recording_started:
+                        if time.time() - start_time < initial_delay:
+                            continue
+                        else:
+                            recording_started = True # Initial delay passed; processing will start now
 
-                if recording_mode in ('voice_activity_detection', 'continuous'):
-                    is_speech = vad.is_speech(np.array(frame).tobytes(), sample_rate)
-                    if is_speech:
-                        self.recording.extend(frame)
-                        num_silent_frames = 0
-                    else:
-                        if len(self.recording) > 0:
-                            num_silent_frames += 1
-                        if num_silent_frames >= num_silence_frames:
-                            self.mutex.lock()
-                            self.is_recording = False
-                            self.mutex.unlock()
-                            break
-                else:
-                    self.recording.extend(frame)
+                    should_stop, silent_frame_count = self._process_audio_frame(
+                        frame, vad, sample_rate, recording, silent_frame_count, silence_frames
+                    )
+                    if should_stop:
+                        break
 
-        audio_data = np.array(self.recording, dtype=np.int16)
-        ConfigManager.console_print(f'Recording finished. Size: {audio_data.size}')
+        return self._save_audio_to_file(recording, sample_rate)
+
+    def _process_audio_frame(self, frame, vad, sample_rate, recording, silent_frame_count, silence_frames):
+        """
+        Process a single audio frame.
+
+        :param frame: The audio frame to process
+        :param vad: The WebRTC VAD instance
+        :param sample_rate: The audio sample rate
+        :param recording: The list to store recorded audio
+        :param silent_frame_count: The count of consecutive silent frames
+        :param silence_frames: The number of silent frames to trigger stop
+        :return: Tuple (should_stop, updated_silent_frame_count)
+        """
+        recording_mode = ConfigManager.get_config_value('recording_options', 'recording_mode')
+        if recording_mode in ('voice_activity_detection', 'continuous'):
+            is_speech = vad.is_speech(frame.tobytes(), sample_rate)
+            if is_speech:
+                if not recording:
+                    ConfigManager.console_print("Speech detected, starting recording...")
+                recording.extend(frame)
+                silent_frame_count = 0
+            elif recording:
+                recording.extend(frame)
+                silent_frame_count += 1
+            else:
+                # If no speech detected and not recording, don't increment silent_frame_count
+                pass
+        else:
+            recording.extend(frame)
+
+        should_stop = silent_frame_count >= silence_frames and recording
+        return should_stop, silent_frame_count
+
+    def _save_audio_to_file(self, recording, sample_rate):
+        """
+        Save the recorded audio to a temporary WAV file.
+
+        :param recording: The list of recorded audio frames
+        :param sample_rate: The audio sample rate
+        :return: Path to the saved audio file
+        """
+        audio_data = np.array(recording, dtype=np.int16)
+        duration = len(audio_data) / sample_rate
+
+        ConfigManager.console_print(f'Recording finished. Size: {audio_data.size} samples, Duration: {duration:.2f} seconds')
 
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
             with wave.open(temp_audio_file.name, 'wb') as wf:
                 wf.setnchannels(1)
-                wf.setsampwidth(2)  # 2 bytes (16 bits) per sample
+                wf.setsampwidth(2)  # 2 bytes per sample (16-bit audio)
                 wf.setframerate(sample_rate)
                 wf.writeframes(audio_data.tobytes())
 
-        ConfigManager.console_print(f'{temp_audio_file.name}')
+        ConfigManager.console_print(f'Audio saved to: {temp_audio_file.name}')
         return temp_audio_file.name

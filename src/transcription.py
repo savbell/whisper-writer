@@ -87,7 +87,6 @@ def post_process_transcription(transcription):
     if post_processing['remove_capitalization']:
         transcription = transcription.lower()
 
-    ConfigManager.console_print(f'Post-processed transcription: {transcription}')
     return transcription
 
 def transcribe(audio_file, local_model=None):
@@ -102,5 +101,4 @@ def transcribe(audio_file, local_model=None):
     else:
         transcription = transcribe_local(audio_file, local_model)
 
-    ConfigManager.console_print(f'Transcription: {transcription}')
     return post_process_transcription(transcription)
