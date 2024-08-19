@@ -208,6 +208,12 @@ class ResultThread(QThread):
 
         ConfigManager.console_print(f'Recording finished. Size: {audio_data.size} samples, Duration: {duration:.2f} seconds')
 
+        min_duration_ms = ConfigManager.get_config_value('recording_options', 'min_duration') or 100
+
+        if (duration * 1000) < min_duration_ms:
+            ConfigManager.console_print(f'Discarded due to being too short.')
+            return None
+
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio_file:
             with wave.open(temp_audio_file.name, 'wb') as wf:
                 wf.setnchannels(1)

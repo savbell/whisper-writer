@@ -4,7 +4,7 @@ model_options:
     value: false
     type: bool
     description: "Toggle to choose whether to use the OpenAI API or a local Whisper model for transcription."
-  
+
   # Common configuration options for both API and local models
   common:
     language:
@@ -113,6 +113,10 @@ recording_options:
     value: 900
     type: int
     description: "The duration in milliseconds to wait for silence before stopping the recording."
+  min_duration:
+    value: 100
+    type: int
+    description: "The minimum duration in milliseconds for a recording to be processed. Recordings shorter than this will be discarded."
 
 # Post-processing options for the transcribed text
 post_processing:
