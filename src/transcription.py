@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from faster_whisper import WhisperModel
 from openai import OpenAI
 import torch
@@ -42,14 +43,18 @@ def create_local_model():
     ConfigManager.console_print('Local model created.')
     return model
 
-def transcribe_local(temp_audio_file, local_model=None):
+def transcribe_local(audio_data, local_model=None):
     """
     Transcribe an audio file using a local model.
     """
     if not local_model:
         local_model = create_local_model()
     model_options = ConfigManager.get_config_section('model_options')
-    response = local_model.transcribe(audio=temp_audio_file,
+
+    # Convert int16 to float32
+    audio_data_float = audio_data.astype(np.float32) / 32768.0
+
+    response = local_model.transcribe(audio=audio_data_float,
                                       language=model_options['common']['language'],
                                       initial_prompt=model_options['common']['initial_prompt'],
                                       condition_on_previous_text=model_options['local']['condition_on_previous_text'],
@@ -57,7 +62,7 @@ def transcribe_local(temp_audio_file, local_model=None):
                                       vad_filter=model_options['local']['vad_filter'],)
     return ''.join([segment.text for segment in list(response[0])])
 
-def transcribe_api(temp_audio_file):
+def transcribe_api(audio_data):
     """
     Transcribe an audio file using the OpenAI API.
     """
@@ -66,12 +71,17 @@ def transcribe_api(temp_audio_file):
         api_key=os.getenv('OPENAI_API_KEY') or None,
         base_url=model_options['api']['base_url'] or 'https://api.openai.com/v1'
     )
-    with open(temp_audio_file, 'rb') as audio_file:
-        response = client.audio.transcriptions.create(model=model_options['api']['model'],
-                                                      file=audio_file,
-                                                      language=model_options['common']['language'],
-                                                      prompt=model_options['common']['initial_prompt'],
-                                                      temperature=model_options['common']['temperature'],)
+
+    # Convert numpy array to bytes
+    byte_io = io.BytesIO(audio_data.tobytes())
+
+    response = client.audio.transcriptions.create(
+        model=model_options['api']['model'],
+        file=("audio.wav", byte_io, "audio/wav"),
+        language=model_options['common']['language'],
+        prompt=model_options['common']['initial_prompt'],
+        temperature=model_options['common']['temperature'],
+    )
     return response.text
 
 def post_process_transcription(transcription):
@@ -89,16 +99,17 @@ def post_process_transcription(transcription):
 
     return transcription
 
-def transcribe(audio_file, local_model=None):
+def transcribe(audio_data, local_model=None):
     """
-    Transcribe an audio file using the OpenAI API or a local model, depending on config.
+    Transcribe audio date using the OpenAI API or a local model, depending on config.
     """
-    if not audio_file:
+    if audio_data is None:
         return ''
 
     if ConfigManager.get_config_value('model_options', 'use_api'):
-        transcription = transcribe_api(audio_file)
+        transcription = transcribe_api(audio_data)
     else:
-        transcription = transcribe_local(audio_file, local_model)
+        transcription = transcribe_local(audio_data, local_model)
 
     return post_process_transcription(transcription)
+
