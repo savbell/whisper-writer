@@ -32,10 +32,10 @@ class WhisperWriterApp(QObject):
         self.settings_window.settings_closed.connect(self.on_settings_closed)
         self.settings_window.settings_saved.connect(self.restart_app)
 
-        if os.path.exists(os.path.join('src', 'config.yaml')):
+        if ConfigManager.config_file_exists():
             self.initialize_components()
         else:
-            print('No configuration file found. Opening settings window...')
+            print('No valid configuration file found. Opening settings window...')
             self.settings_window.show()
 
     def initialize_components(self):

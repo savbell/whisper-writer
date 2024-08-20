@@ -15,7 +15,8 @@ class ConfigManager:
         if cls._instance is None:
             cls._instance = cls()
             cls._instance.schema = cls._instance.load_config_schema(schema_path)
-            cls._instance.config = cls._instance.load_config_values()
+            cls._instance.config = cls._instance.load_default_config()
+            cls._instance.load_user_config()
 
     @classmethod
     def get_schema(cls):
@@ -25,11 +26,18 @@ class ConfigManager:
         return cls._instance.schema
 
     @classmethod
-    def get_config_section(cls, section):
+    def get_config_section(cls, *keys):
         """Get a specific section of the configuration."""
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
-        return cls._instance.config.get(section, {})
+
+        section = cls._instance.config
+        for key in keys:
+            if isinstance(section, dict) and key in section:
+                section = section[key]
+            else:
+                return {}
+        return section
 
     @classmethod
     def get_config_value(cls, *keys):
@@ -55,14 +63,10 @@ class ConfigManager:
         for key in keys[:-1]:
             if key not in config:
                 config[key] = {}
+            elif not isinstance(config[key], dict):
+                config[key] = {}
             config = config[key]
         config[keys[-1]] = value
-
-    @classmethod
-    def console_print(cls, message):
-        """Print a message to the console if enabled in the configuration."""
-        if cls._instance and cls._instance.config['misc']['print_to_terminal']:
-            print(message)
 
     @staticmethod
     def load_config_schema(schema_path=None):
@@ -75,33 +79,37 @@ class ConfigManager:
             schema = yaml.safe_load(file)
         return schema
 
-    def load_config_values(self, config_path=os.path.join('src', 'config.yaml')):
-        """Load configuration values from a YAML file, using schema as default."""
+    def load_default_config(self):
+        """Load default configuration values from the schema."""
+        def extract_value(item):
+            if isinstance(item, dict):
+                if 'value' in item:
+                    return item['value']
+                else:
+                    return {k: extract_value(v) for k, v in item.items()}
+            return item
+
         config = {}
         for category, settings in self.schema.items():
-            config[category] = {}
-            for sub_category, sub_settings in settings.items():
-                if isinstance(sub_settings, dict) and 'value' in sub_settings:
-                    config[category][sub_category] = sub_settings['value']
-                else:
-                    config[category][sub_category] = {}
-                    for key, meta in sub_settings.items():
-                        config[category][sub_category][key] = meta['value']
-
-        # Load user settings if they exist
-        if config_path and os.path.isfile(config_path):
-            with open(config_path, 'r') as file:
-                user_config = yaml.safe_load(file)
-                for category, settings in user_config.items():
-                    if category in config:
-                        for sub_category, sub_settings in settings.items():
-                            if isinstance(sub_settings, dict):
-                                for key, value in sub_settings.items():
-                                    config[category][sub_category][key] = value
-                            else:
-                                config[category][sub_category] = sub_settings
-
+            config[category] = extract_value(settings)
         return config
+
+    def load_user_config(self, config_path=os.path.join('src', 'config.yaml')):
+        """Load user configuration and merge with default config."""
+        def deep_update(source, overrides):
+            for key, value in overrides.items():
+                if isinstance(value, dict) and key in source:
+                    deep_update(source[key], value)
+                else:
+                    source[key] = value
+
+        if config_path and os.path.isfile(config_path):
+            try:
+                with open(config_path, 'r') as file:
+                    user_config = yaml.safe_load(file)
+                    deep_update(self.config, user_config)
+            except yaml.YAMLError:
+                print("Error in configuration file. Using default configuration.")
 
     @classmethod
     def save_config(cls, config_path=os.path.join('src', 'config.yaml')):
@@ -118,4 +126,17 @@ class ConfigManager:
         """
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
-        cls._instance.config = cls._instance.load_config_values()
+        cls._instance.config = cls._instance.load_default_config()
+        cls._instance.load_user_config()
+
+    @classmethod
+    def config_file_exists(cls):
+        """Check if a valid config file exists."""
+        config_path = os.path.join('src', 'config.yaml')
+        return os.path.isfile(config_path)
+
+    @classmethod
+    def console_print(cls, message):
+        """Print a message to the console if enabled in the configuration."""
+        if cls._instance and cls._instance.config['misc']['print_to_terminal']:
+            print(message)
