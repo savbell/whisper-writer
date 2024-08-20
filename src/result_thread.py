@@ -10,7 +10,6 @@ from collections import deque
 from threading import Event
 
 from transcription import transcribe
-from input_simulation import InputSimulator
 from utils import ConfigManager
 
 
@@ -45,7 +44,6 @@ class ResultThread(QThread):
         self.is_running = True
         self.sample_rate = None
         self.mutex = QMutex()
-        self.input_simulator = InputSimulator()
 
     def stop_recording(self):
         """Stop the current recording session."""
@@ -98,6 +96,7 @@ class ResultThread(QThread):
 
             self.statusSignal.emit('idle')
             self.resultSignal.emit(result)
+
         except Exception as e:
             traceback.print_exc()
             self.statusSignal.emit('error')
