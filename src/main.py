@@ -3,6 +3,7 @@ import sys
 import time
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
+from PyQt5.QtCore import QObject, QProcess
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox
 
@@ -16,11 +17,12 @@ from input_simulation import InputSimulator
 from utils import ConfigManager
 
 
-class WhisperWriterApp:
+class WhisperWriterApp(QObject):
     def __init__(self):
         """
         Initialize the application, opening settings window if no configuration file is found.
         """
+        super().__init__()
         self.app = QApplication(sys.argv)
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
 
@@ -84,12 +86,22 @@ class WhisperWriterApp:
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
+    def cleanup(self):
+        if self.input_simulator:
+            self.input_simulator.cleanup()
+
     def exit_app(self):
         """
         Exit the application.
         """
-        self.input_simulator.cleanup()
+        self.cleanup()
         QApplication.quit()
+
+    def restart_app(self):
+        """Restart the application to apply the new settings."""
+        self.cleanup()
+        QApplication.quit()
+        QProcess.startDetached(sys.executable, sys.argv)
 
     def on_settings_closed(self):
         """

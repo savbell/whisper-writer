@@ -15,6 +15,7 @@ load_dotenv()
 
 class SettingsWindow(BaseWindow):
     settings_closed = pyqtSignal()
+    settings_saved = pyqtSignal()
 
     def __init__(self):
         """Initialize the settings window."""
@@ -177,8 +178,9 @@ class SettingsWindow(BaseWindow):
         ConfigManager.set_config_value(None, 'model_options', 'api', 'api_key')
 
         ConfigManager.save_config()
-        QMessageBox.information(self, 'Settings Saved', 'Settings have been saved. Restarting application...')
-        self.restart_application()
+        QMessageBox.information(self, 'Settings Saved', 'Settings have been saved. The application will now restart.')
+        self.settings_saved.emit()
+        self.close()
 
     def save_setting(self, widget, category, sub_category, key, meta):
         value = self.get_widget_value_typed(widget, meta.get('type'))
@@ -186,11 +188,6 @@ class SettingsWindow(BaseWindow):
             ConfigManager.set_config_value(value, category, sub_category, key)
         else:
             ConfigManager.set_config_value(value, category, key)
-
-    def restart_application(self):
-        """Restart the application to apply the new settings."""
-        QCoreApplication.quit()
-        QProcess.startDetached(sys.executable, sys.argv)
 
     def reset_settings(self):
         """Reset the settings to the saved values."""

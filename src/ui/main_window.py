@@ -10,6 +10,7 @@ from ui.base_window import BaseWindow
 class MainWindow(BaseWindow):
     openSettings = pyqtSignal()
     startListening = pyqtSignal()
+    closeApp = pyqtSignal()
 
     def __init__(self):
         """
@@ -41,13 +42,13 @@ class MainWindow(BaseWindow):
         self.main_layout.addStretch(1)
         self.main_layout.addLayout(button_layout)
         self.main_layout.addStretch(1)
-        
+
     def closeEvent(self, event):
         """
         Close the application when the main window is closed.
         """
-        QApplication.quit()
-        
+        self.closeApp.emit()
+
     def startPressed(self):
         """
         Emit the startListening signal when the start button is pressed.
