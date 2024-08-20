@@ -92,6 +92,14 @@ recording_options:
     value: ctrl+shift+space
     type: str
     description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
+  input_backend:
+    value: auto
+    type: str
+    description: "The input backend to use for detecting key presses. 'auto' will try to use the best available backend."
+    options:
+      - auto
+      - evdev
+      - pynput
   recording_mode:
     value: continuous
     type: str

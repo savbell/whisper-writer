@@ -30,6 +30,7 @@ class WhisperWriterApp(QObject):
 
         self.settings_window = SettingsWindow()
         self.settings_window.settings_closed.connect(self.on_settings_closed)
+        self.settings_window.settings_saved.connect(self.restart_app)
 
         if os.path.exists(os.path.join('src', 'config.yaml')):
             self.initialize_components()
@@ -44,8 +45,8 @@ class WhisperWriterApp(QObject):
         self.input_simulator = InputSimulator()
 
         self.key_listener = KeyListener()
-        self.key_listener.activationKeyPressed.connect(self.activation_key_pressed)
-        self.key_listener.activationKeyReleased.connect(self.activation_key_released)
+        self.key_listener.add_callback("on_activate", self.on_activation)
+        self.key_listener.add_callback("on_deactivate", self.on_deactivation)
 
         model_options = ConfigManager.get_config_section('model_options')
         model_path = model_options.get('local', {}).get('model_path')
@@ -55,7 +56,8 @@ class WhisperWriterApp(QObject):
 
         self.main_window = MainWindow()
         self.main_window.openSettings.connect(self.settings_window.show)
-        self.main_window.startListening.connect(self.key_listener.start_listening)
+        self.main_window.startListening.connect(self.key_listener.start)
+        self.main_window.closeApp.connect(self.exit_app)
 
         if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.status_window = StatusWindow()
@@ -87,6 +89,8 @@ class WhisperWriterApp(QObject):
         self.tray_icon.show()
 
     def cleanup(self):
+        if self.key_listener:
+            self.key_listener.stop()
         if self.input_simulator:
             self.input_simulator.cleanup()
 
@@ -115,23 +119,23 @@ class WhisperWriterApp(QObject):
             )
             self.initialize_components()
 
-    def activation_key_pressed(self):
+    def on_activation(self):
         """
-        When the activation key is pressed, start the result thread to record audio and transcribe it.
-        Or, if the recording mode is press_to_toggle or continuous, stop the recording or thread.
+        Called when the activation key combination is pressed.
         """
         if self.result_thread and self.result_thread.isRunning():
-            if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'press_to_toggle':
+            recording_mode = ConfigManager.get_config_value('recording_options', 'recording_mode')
+            if recording_mode == 'press_to_toggle':
                 self.result_thread.stop_recording()
-            elif ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
+            elif recording_mode == 'continuous':
                 self.stop_result_thread()
             return
 
         self.start_result_thread()
 
-    def activation_key_released(self):
+    def on_deactivation(self):
         """
-        When the activation key is released, stop the recording if the recording mode is hold_to_record.
+        Called when the activation key combination is released.
         """
         if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'hold_to_record':
             if self.result_thread and self.result_thread.isRunning():
@@ -170,7 +174,7 @@ class WhisperWriterApp(QObject):
         if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
             self.start_result_thread()
         else:
-            self.key_listener.start_listening()
+            self.key_listener.start()
 
     def run(self):
         """
