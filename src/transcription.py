@@ -9,6 +9,7 @@ from enum import Enum
 from utils import ConfigManager
 from post_processing import post_process
 
+
 class StreamingStatus(Enum):
     NOT_SUPPORTED = 0
     IDLE = 1
@@ -273,7 +274,6 @@ class FasterWhisperBackend(TranscriptionBackend):
             'raw_text': transcription,
             'language': info.language,
         }
-
 
     def supports_streaming(self) -> StreamingStatus:
         streaming_supported = ConfigManager.get_config_value('model_options.backends.faster_whisper.capabilities.streaming')

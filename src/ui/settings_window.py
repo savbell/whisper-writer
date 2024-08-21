@@ -1,4 +1,3 @@
-import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QGroupBox, QLabel, QLineEdit, QSpacerItem, QSizePolicy,
                              QComboBox, QCheckBox, QPushButton, QScrollArea, QToolButton, QMessageBox,
@@ -7,6 +6,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 
 from utils import ConfigManager
+
 
 class SettingsWindow(QWidget):
     settings_saved = pyqtSignal()
@@ -311,12 +311,3 @@ class ScriptsBinding(Binding):
     def update_config(self):
         value = self.getter(self.widget)
         self.config_manager.set_config_value(self.config_key, value)
-
-def main():
-    app = QApplication(sys.argv)
-    settings_window = SettingsWindow()
-    settings_window.show()
-    sys.exit(app.exec_())
-
-if __name__ == "__main__":
-    main()

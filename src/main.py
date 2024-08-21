@@ -1,9 +1,7 @@
 import os
 import sys
-import time
 from audioplayer import AudioPlayer
-from pynput.keyboard import Controller
-from PyQt5.QtCore import QObject, QProcess
+from PyQt5.QtCore import QObject, QProcess, pyqtSignal, QMetaObject, Q_ARG, Qt, pyqtSlot
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox
 
@@ -16,6 +14,9 @@ from transcription import TranscriptionManager
 from input_simulation import InputSimulator
 from utils import ConfigManager
 
+
+class StatusUpdater(QObject):
+    statusSignal = pyqtSignal(str)
 
 class WhisperWriterApp(QObject):
     def __init__(self):
@@ -40,6 +41,9 @@ class WhisperWriterApp(QObject):
         else:
             print('No valid configuration file found. Opening settings window...')
             self.settings_window.show()
+
+        self.status_updater = StatusUpdater()
+        self.status_updater.statusSignal.connect(self.on_status_update)
 
     def initialize_components(self):
         """
@@ -129,7 +133,7 @@ class WhisperWriterApp(QObject):
         """
         Called when the activation key combination is pressed.
         """
-        if self.result_thread and self.result_thread.isRunning():
+        if self.result_thread and self.result_thread.is_alive():
             recording_mode = ConfigManager.get_config_value('recording_options.recording_mode')
             if recording_mode == 'press_to_toggle':
                 self.result_thread.stop_recording()
@@ -144,33 +148,51 @@ class WhisperWriterApp(QObject):
         Called when the activation key combination is released.
         """
         if ConfigManager.get_config_value('recording_options.recording_mode') == 'hold_to_record':
-            if self.result_thread and self.result_thread.isRunning():
+            if self.result_thread and self.result_thread.is_alive():
                 self.result_thread.stop_recording()
 
     def start_result_thread(self):
         """
-        Start the result thread to record audio and transcribe it.
+        Start the ResultThread for audio recording and transcription.
+        Set up callbacks for status updates and transcription completion.
         """
-        if self.result_thread and self.result_thread.isRunning():
+        if self.result_thread and self.result_thread.is_alive():
             return
 
         self.result_thread = ResultThread(self.transcription_manager)
-        if not ConfigManager.get_config_value('misc.hide_status_window'):
-            self.result_thread.statusSignal.connect(self.status_window.updateStatus)
-            self.status_window.closeSignal.connect(self.stop_result_thread)
-        self.result_thread.resultSignal.connect(self.on_transcription_complete)
+        self.result_thread.set_callbacks(self.status_updater.statusSignal.emit, self.on_transcription_complete)
         self.result_thread.start()
+
+
+    def on_status_update(self, status):
+        """
+        Handle status updates from the ResultThread.
+        Update the status window if it's not hidden.
+        """
+        if not ConfigManager.get_config_value('misc.hide_status_window'):
+            self.status_window.statusSignal.emit(status)
 
     def stop_result_thread(self):
         """
         Stop the result thread.
         """
-        if self.result_thread and self.result_thread.isRunning():
+        if self.result_thread and self.result_thread.is_alive():
             self.result_thread.stop()
 
     def on_transcription_complete(self, result):
         """
-        When the transcription is complete, type the result and start listening for the activation key again.
+        Handle the completion of transcription.
+        Invoke the result handling method on the main thread.
+        """
+        QMetaObject.invokeMethod(self, "handle_transcription_result",
+                                 Qt.QueuedConnection,
+                                 Q_ARG(str, result))
+
+    @pyqtSlot(str)
+    def handle_transcription_result(self, result):
+        """
+        Process the transcription result on the main thread.
+        Type the result, play a completion sound if enabled, and prepare for the next recording.
         """
         self.input_simulator.typewrite(result)
 

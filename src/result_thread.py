@@ -1,18 +1,15 @@
+import threading
 import time
 import traceback
 import numpy as np
 import sounddevice as sd
-import tempfile
-import wave
 import webrtcvad
-from PyQt5.QtCore import QThread, QMutex, pyqtSignal
 from collections import deque
-from threading import Event
 
 from utils import ConfigManager
 
 
-class ResultThread(QThread):
+class ResultThread(threading.Thread):
     """
     A thread class for handling audio recording, transcription, and result processing.
 
@@ -22,14 +19,7 @@ class ResultThread(QThread):
     3. Saving the recorded audio as numpy array
     4. Transcribing the audio
     5. Emitting the transcription result
-
-    Signals:
-        statusSignal: Emits the current status of the thread (e.g., 'recording', 'transcribing', 'idle')
-        resultSignal: Emits the transcription result
     """
-
-    statusSignal = pyqtSignal(str)
-    resultSignal = pyqtSignal(str)
 
     def __init__(self, transcription_manager):
         """
@@ -42,21 +32,33 @@ class ResultThread(QThread):
         self.is_recording = False
         self.is_running = True
         self.sample_rate = None
-        self.mutex = QMutex()
+        self.lock = threading.Lock()
+        self.status_callback = None
+        self.result_callback = None
+
+    def set_callbacks(self, status_callback, result_callback):
+        self.status_callback = status_callback
+        self.result_callback = result_callback
 
     def stop_recording(self):
         """Stop the current recording session."""
-        self.mutex.lock()
-        self.is_recording = False
-        self.mutex.unlock()
+        with self.lock:
+            self.is_recording = False
 
     def stop(self):
         """Stop the entire thread execution."""
-        self.mutex.lock()
-        self.is_running = False
-        self.mutex.unlock()
-        self.statusSignal.emit('idle')
-        self.wait()
+        with self.lock:
+            self.is_running = False
+        self.emit_status('idle')
+        self.join()
+
+    def emit_status(self, status):
+        if self.status_callback:
+            self.status_callback(status)
+
+    def emit_result(self, result):
+        if self.result_callback:
+            self.result_callback(result)
 
     def run(self):
         """Main execution method for the thread."""
@@ -64,11 +66,10 @@ class ResultThread(QThread):
             if not self.is_running:
                 return
 
-            self.mutex.lock()
-            self.is_recording = True
-            self.mutex.unlock()
+            with self.lock:
+                self.is_recording = True
 
-            self.statusSignal.emit('recording')
+            self.emit_status('recording')
             ConfigManager.console_print('Recording...')
             audio_data = self._record_audio()
 
@@ -76,31 +77,30 @@ class ResultThread(QThread):
                 return
 
             if audio_data is None:
-                self.statusSignal.emit('idle')
+                self.emit_status('idle')
                 return
 
-            self.statusSignal.emit('transcribing')
+            self.emit_status('transcribing')
             ConfigManager.console_print('Transcribing...')
 
-            # Time the transcription process
             start_time = time.time()
             transcription_result = self.transcription_manager.transcribe(audio_data, sample_rate=self.sample_rate)
             end_time = time.time()
 
             if transcription_result is None:
-                self.statusSignal.emit('error')
+                self.emit_status('error')
                 return
 
             transcription_time = end_time - start_time
             ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {transcription_result["processed_text"]}')
 
-            self.statusSignal.emit('idle')
-            self.resultSignal.emit(transcription_result["processed_text"])
+            self.emit_status('idle')
+            self.emit_result(transcription_result["processed_text"])
 
         except Exception as e:
             traceback.print_exc()
-            self.statusSignal.emit('error')
-            self.resultSignal.emit('')
+            self.emit_status('error')
+            self.emit_result('')
         finally:
             self.stop_recording()
 
@@ -135,7 +135,7 @@ class ResultThread(QThread):
         if sound_device == '':
             sound_device = None  # Use default device if empty string
 
-        data_ready = Event()
+        data_ready = threading.Event()
 
         def audio_callback(indata, frames, time, status):
             if status:
