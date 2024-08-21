@@ -84,7 +84,8 @@ class ResultThread(threading.Thread):
             ConfigManager.console_print('Transcribing...')
 
             start_time = time.time()
-            transcription_result = self.transcription_manager.transcribe(audio_data, sample_rate=self.sample_rate)
+            transcription_result = self.transcription_manager.transcribe(
+                audio_data, sample_rate=self.sample_rate)
             end_time = time.time()
 
             if transcription_result is None:
@@ -92,7 +93,9 @@ class ResultThread(threading.Thread):
                 return
 
             transcription_time = end_time - start_time
-            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line:{transcription_result["processed_text"]}')
+            ConfigManager.console_print(
+                f'Transcription completed in {transcription_time:.2f} seconds. '
+                f'Post-processed line:{transcription_result["processed_text"]}')
 
             self.emit_status('idle')
             self.emit_result(transcription_result["processed_text"])
@@ -101,6 +104,7 @@ class ResultThread(threading.Thread):
             traceback.print_exc()
             self.emit_status('error')
             self.emit_result('')
+            print(f"Result thread error: {e}")
         finally:
             self.stop_recording()
 
@@ -177,12 +181,13 @@ class ResultThread(threading.Thread):
         audio_data = np.array(recording, dtype=np.int16)
         duration = len(audio_data) / self.sample_rate
 
-        ConfigManager.console_print(f'Recording finished. Size: {audio_data.size} samples, Duration: {duration:.2f} seconds')
+        ConfigManager.console_print(f'Recording finished. Size: {audio_data.size} samples, '
+                                    f'Duration: {duration:.2f} seconds')
 
         min_duration_ms = recording_options.get('min_duration') or 100
 
         if (duration * 1000) < min_duration_ms:
-            ConfigManager.console_print(f'Discarded due to being too short.')
+            ConfigManager.console_print('Discarded due to being too short.')
             return None
 
         return audio_data

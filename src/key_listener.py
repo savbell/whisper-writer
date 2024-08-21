@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Callable, Set
+from typing import Callable, Set, Optional, List
 
 from utils import ConfigManager
 
@@ -10,6 +10,7 @@ class InputEvent(Enum):
     KEY_RELEASE = auto()
     MOUSE_PRESS = auto()
     MOUSE_RELEASE = auto()
+
 
 class KeyCode(Enum):
     # Modifier keys
@@ -199,6 +200,7 @@ class KeyCode(Enum):
     MOUSE_SIDE2 = auto()
     MOUSE_SIDE3 = auto()
 
+
 class InputBackend(ABC):
     """
     Abstract base class for input backends.
@@ -210,9 +212,6 @@ class InputBackend(ABC):
     def is_available(cls) -> bool:
         """
         Check if this input backend is available on the current system.
-
-        Returns:
-            bool: True if the backend is available, False otherwise.
         """
         pass
 
@@ -237,10 +236,9 @@ class InputBackend(ABC):
         """
         Handle an input event.
         This method is called when an input event is detected.
-
-        :param event (Tuple[KeyCode, InputEvent]): A tuple containing the key code and the type of event.
         """
         pass
+
 
 class KeyChord:
     """
@@ -271,6 +269,7 @@ class KeyChord:
                 return False
         return True
 
+
 class KeyListener:
     """
     Manages input backends and listens for specific key combinations.
@@ -292,7 +291,8 @@ class KeyListener:
     def initialize_backends(self):
         """Initialize available input backends."""
         backend_classes = [EvdevBackend, PynputBackend]
-        self.backends = [backend_class() for backend_class in backend_classes if backend_class.is_available()]
+        self.backends = [backend_class() for backend_class in backend_classes
+                         if backend_class.is_available()]
 
     def select_backend_from_config(self):
         """Select the active backend based on configuration."""
@@ -310,7 +310,8 @@ class KeyListener:
                 try:
                     self.set_active_backend(backend_map[preferred_backend])
                 except ValueError:
-                    print(f"Preferred backend '{preferred_backend}' is not available. Falling back to auto selection.")
+                    print(f"Preferred backend '{preferred_backend}' is not available. "
+                          f"Falling back to auto selection.")
                     self.select_active_backend()
             else:
                 print(f"Unknown backend '{preferred_backend}'. Falling back to auto selection.")
@@ -384,7 +385,7 @@ class KeyListener:
         self.key_chord = KeyChord(keys)
 
     def on_input_event(self, event):
-        """Handle input events and trigger callbacks if the key chord becomes active or inactive."""
+        """Handle input events and trigger callbacks if the key chord becomes active."""
         if not self.key_chord or not self.active_backend:
             return
 
@@ -412,6 +413,7 @@ class KeyListener:
         """Update activation keys from the current configuration."""
         self.load_activation_keys()
 
+
 class EvdevBackend(InputBackend):
     """
     Backend for handling input events using the evdev library.
@@ -428,6 +430,8 @@ class EvdevBackend(InputBackend):
 
     def __init__(self):
         """Initialize the EvdevBackend."""
+        import evdev
+        import threading
         self.devices: List[evdev.InputDevice] = []
         self.key_map: Optional[dict] = None
         self.evdev = None
@@ -510,7 +514,8 @@ class EvdevBackend(InputBackend):
         import errno
         if isinstance(error, BlockingIOError) and error.errno == errno.EAGAIN:
             return  # Non-blocking IO is expected, just continue
-        if isinstance(error, OSError) and (error.errno == errno.EBADF or error.errno == errno.ENODEV):
+        if isinstance(error, OSError) and (error.errno == errno.EBADF or
+                                           error.errno == errno.ENODEV):
             print(f"Device {device.path} is no longer available. Removing it.")
             self.devices.remove(device)
         else:
@@ -738,6 +743,7 @@ class EvdevBackend(InputBackend):
         This method is called for each processed input event.
         """
         pass
+
 
 class PynputBackend(InputBackend):
     """

@@ -18,6 +18,7 @@ from utils import ConfigManager
 class StatusUpdater(QObject):
     statusSignal = pyqtSignal(str)
 
+
 class WhisperWriterApp(QObject):
     def __init__(self):
         """
@@ -57,7 +58,8 @@ class WhisperWriterApp(QObject):
 
         self.transcription_manager = TranscriptionManager()
         if not self.transcription_manager:
-            QMessageBox.critical(None, "Initialization Error", f"Failed to initialize transcription: {str(e)}")
+            QMessageBox.critical(None, "Initialization Error",
+                                 "Failed to initialize transcription.")
 
         self.result_thread = None
 
@@ -118,7 +120,8 @@ class WhisperWriterApp(QObject):
 
     def on_settings_closed(self):
         """
-        If settings is closed without saving on first run, initialize the components with default values.
+        If settings is closed without saving on first run,
+        initialize the components with default values.
         """
         if not ConfigManager.config_file_exists():
             QMessageBox.information(
@@ -160,9 +163,9 @@ class WhisperWriterApp(QObject):
             return
 
         self.result_thread = ResultThread(self.transcription_manager)
-        self.result_thread.set_callbacks(self.status_updater.statusSignal.emit, self.on_transcription_complete)
+        self.result_thread.set_callbacks(self.status_updater.statusSignal.emit,
+                                         self.on_transcription_complete)
         self.result_thread.start()
-
 
     def on_status_update(self, status):
         """

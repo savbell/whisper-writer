@@ -6,6 +6,7 @@ from pynput.keyboard import Controller as PynputController
 
 from utils import ConfigManager
 
+
 def run_command_or_exit_on_failure(command):
     """
     Run a shell command and exit if it fails.
@@ -18,6 +19,7 @@ def run_command_or_exit_on_failure(command):
     except subprocess.CalledProcessError as e:
         print(f"Error running command: {e}")
         exit(1)
+
 
 class KeyboardSimulator:
     """

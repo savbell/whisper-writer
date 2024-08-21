@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-                             QTabWidget, QGroupBox, QLabel, QLineEdit, QSpacerItem, QSizePolicy,
-                             QComboBox, QCheckBox, QPushButton, QScrollArea, QToolButton, QMessageBox,
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QGroupBox,
+                             QLabel, QLineEdit, QSpacerItem, QSizePolicy, QComboBox,
+                             QCheckBox, QPushButton, QScrollArea, QToolButton, QMessageBox,
                              QFileDialog)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
@@ -75,7 +75,8 @@ class SettingsWindow(QWidget):
     def find_group_box(self, layout, name):
         for i in range(layout.count()):
             widget = layout.itemAt(i).widget()
-            if isinstance(widget, QGroupBox) and widget.title().lower().replace(' ', '_') == name.split('.')[-1]:
+            if (isinstance(widget, QGroupBox) and
+                    widget.title().lower().replace(' ', '_')) == name.split('.')[-1]:
                 return widget
         return None
 
@@ -123,6 +124,7 @@ class SettingsWindow(QWidget):
     def closeEvent(self, event):
         self.settings_closed.emit()
         event.accept()
+
 
 class SettingWidget(QWidget):
     def __init__(self, config_key, meta, config_manager, binding_manager):
@@ -172,7 +174,8 @@ class SettingWidget(QWidget):
         self.setLayout(layout)
 
     def show_help(self):
-        QMessageBox.information(self, "Help", self.meta.get('description', 'No description available.'))
+        QMessageBox.information(self, "Help", self.meta.get('description',
+                                                            'No description available.'))
 
     def create_input_widget(self):
         if self.is_capability:
@@ -212,7 +215,8 @@ class SettingWidget(QWidget):
         return widget
 
     def get_enabled_scripts(self, widget):
-        return [script for script, checkbox in self.script_checkboxes.items() if checkbox.isChecked()]
+        return [script for script, checkbox in self.script_checkboxes.items()
+                if checkbox.isChecked()]
 
     def set_enabled_scripts(self, widget, value):
         for script, checkbox in self.script_checkboxes.items():
@@ -267,6 +271,7 @@ class SettingWidget(QWidget):
         except ValueError:
             return value  # Return as string if it can't be converted to int
 
+
 class BindingManager:
     def __init__(self):
         self.bindings = {}
@@ -278,7 +283,6 @@ class BindingManager:
             else:
                 self.bindings[config_key] = Binding(config_key, widget, getter, setter)
 
-
     def update_all_widgets(self):
         for binding in self.bindings.values():
             binding.update_widget()
@@ -286,6 +290,7 @@ class BindingManager:
     def update_all_config(self):
         for binding in self.bindings.values():
             binding.update_config()
+
 
 class Binding:
     def __init__(self, config_key, widget, getter, setter):
@@ -302,6 +307,7 @@ class Binding:
     def update_config(self):
         value = self.getter(self.widget)
         self.config_manager.set_config_value(self.config_key, value)
+
 
 class ScriptsBinding(Binding):
     def update_widget(self):

@@ -1,6 +1,7 @@
 import threading
 import traceback
 import os
+import io
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional
@@ -17,13 +18,15 @@ class StreamingStatus(Enum):
     ALREADY_RUNNING = 3
     FAILED_TO_START = 4
 
+
 class TranscriptionBackend(ABC):
     @abstractmethod
     def initialize(self):
         pass
 
     @abstractmethod
-    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
+    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000,
+                   channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
         pass
 
     @abstractmethod
@@ -31,7 +34,8 @@ class TranscriptionBackend(ABC):
         pass
 
     @abstractmethod
-    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None], sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
+    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None],
+                        sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
         pass
 
     @abstractmethod
@@ -41,6 +45,7 @@ class TranscriptionBackend(ABC):
     @abstractmethod
     def cleanup(self):
         pass
+
 
 class TranscriptionManager:
     def __init__(self):
@@ -67,7 +72,8 @@ class TranscriptionManager:
             print(f"Failed to initialize backend: {e}")
             self.backend = None
 
-    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1, language: str = 'auto') -> Optional[Dict[str, Any]]:
+    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000,
+                   channels: int = 1, language: str = 'auto') -> Optional[Dict[str, Any]]:
         if not self.backend:
             return None
 
@@ -80,7 +86,10 @@ class TranscriptionManager:
             print(f"Transcription failed: {e}")
             return None
 
-    def start_streaming_transcription(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None], sample_rate: int = 16000, channels: int = 1, language: str = 'auto') -> StreamingStatus:
+    def start_streaming_transcription(self, audio_source: Any,
+                                      callback: Callable[[Dict[str, Any]], None],
+                                      sample_rate: int = 16000, channels: int = 1,
+                                      language: str = 'auto') -> StreamingStatus:
         if not self.backend:
             return StreamingStatus.NOT_SUPPORTED
 
@@ -95,10 +104,12 @@ class TranscriptionManager:
                 result['processed_text'] = post_process(result['raw_text'])
                 callback(result)
 
-            self.backend.start_streaming(audio_source, process_callback, sample_rate, channels, language)
+            self.backend.start_streaming(audio_source, process_callback, sample_rate,
+                                         channels, language)
 
         try:
-            self.streaming_thread = threading.Thread(target=streaming_wrapper, args=(audio_source, callback))
+            self.streaming_thread = threading.Thread(target=streaming_wrapper,
+                                                     args=(audio_source, callback))
             self.streaming_thread.start()
             self.streaming_status = StreamingStatus.STREAMING
             return StreamingStatus.STREAMING
@@ -128,6 +139,7 @@ class TranscriptionManager:
         if self.backend:
             self.backend.cleanup()
 
+
 class OpenAIBackend(TranscriptionBackend):
     def initialize(self):
         try:
@@ -138,11 +150,12 @@ class OpenAIBackend(TranscriptionBackend):
         self.OpenAI = OpenAI
         self.config = ConfigManager.get_config_section('model_options.backends.openai')
         self.client = self.OpenAI(
-            api_key=self.config.get('api_key') or os.getenv(OPENAI_API_KEY),
+            api_key=self.config.get('api_key') or os.getenv('OPENAI_API_KEY'),
             base_url=self.config.get('base_url') or 'https://api.openai.com/v1'
         )
 
-    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
+    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1,
+                   language: str = 'auto') -> Dict[str, Any]:
         if not self.client:
             raise RuntimeError("OpenAI client not initialized")
 
@@ -162,12 +175,14 @@ class OpenAIBackend(TranscriptionBackend):
             )
             return {
                 'raw_text': response.text,
-                'language': language,  # OpenAI doesn't return detected language, so we use the input language
+                'language': language,  # OpenAI doesn't return detected language,
+                                       # so we use the input language
             }
         except Exception as e:
             raise RuntimeError(f"OpenAI transcription failed: {str(e)}")
 
-    def _prepare_audio_data(self, audio_data: np.ndarray, sample_rate: int, channels: int) -> np.ndarray:
+    def _prepare_audio_data(self, audio_data: np.ndarray, sample_rate: int,
+                            channels: int) -> np.ndarray:
         # OpenAI expects 16kHz mono audio
         if sample_rate != 16000 or channels != 1:
             try:
@@ -188,10 +203,12 @@ class OpenAIBackend(TranscriptionBackend):
         return audio_data
 
     def supports_streaming(self) -> StreamingStatus:
-        streaming_supported = ConfigManager.get_config_value('model_options.backends.openai.capabilities.streaming')
+        streaming_supported = ConfigManager.get_config_value(
+            'model_options.backends.openai.capabilities.streaming')
         return StreamingStatus.IDLE if streaming_supported else StreamingStatus.NOT_SUPPORTED
 
-    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None], sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
+    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None],
+                        sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
         raise NotImplementedError("Streaming is not currently supported for OpenAI backend")
 
     def stop_streaming(self):
@@ -199,6 +216,7 @@ class OpenAIBackend(TranscriptionBackend):
 
     def cleanup(self):
         self.client = None
+
 
 class FasterWhisperBackend(TranscriptionBackend):
     def initialize(self):
@@ -251,7 +269,8 @@ class FasterWhisperBackend(TranscriptionBackend):
                 print(f'Failed to load base model on CPU: {e}')
                 raise RuntimeError(f"Failed to initialize any Whisper model: {e}")
 
-    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
+    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1,
+                   language: str = 'auto') -> Dict[str, Any]:
         if not self.model:
             raise RuntimeError("Model not initialized")
 
@@ -276,10 +295,12 @@ class FasterWhisperBackend(TranscriptionBackend):
         }
 
     def supports_streaming(self) -> StreamingStatus:
-        streaming_supported = ConfigManager.get_config_value('model_options.backends.faster_whisper.capabilities.streaming')
+        streaming_supported = ConfigManager.get_config_value(
+            'model_options.backends.faster_whisper.capabilities.streaming')
         return StreamingStatus.IDLE if streaming_supported else StreamingStatus.NOT_SUPPORTED
 
-    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None], sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
+    def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None],
+                        sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
         raise NotImplementedError("Streaming is not supported for Faster Whisper backend")
 
     def stop_streaming(self):

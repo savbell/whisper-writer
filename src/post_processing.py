@@ -4,6 +4,7 @@ from typing import List
 from utils import ConfigManager
 from post_processing_base import PostProcessor
 
+
 class PostProcessingManager:
     def __init__(self):
         self.scripts_folder = 'scripts'
@@ -33,6 +34,7 @@ class PostProcessingManager:
         for processor in self.processors:
             text = processor.process(text)
         return text
+
 
 def post_process(text: str) -> str:
     manager = PostProcessingManager()

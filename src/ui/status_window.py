@@ -1,11 +1,12 @@
 import sys
 import os
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QTimer
-from PyQt5.QtGui import QFont, QPixmap, QIcon
+from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QHBoxLayout
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 class StatusWindow(BaseWindow):
@@ -33,8 +34,10 @@ class StatusWindow(BaseWindow):
         self.icon_label.setFixedSize(32, 32)
         microphone_path = os.path.join('assets', 'microphone.png')
         pencil_path = os.path.join('assets', 'pencil.png')
-        self.microphone_pixmap = QPixmap(microphone_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.pencil_pixmap = QPixmap(pencil_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.microphone_pixmap = QPixmap(
+            microphone_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.pencil_pixmap = QPixmap(
+            pencil_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.icon_label.setPixmap(self.microphone_pixmap)
         self.icon_label.setAlignment(Qt.AlignCenter)
 

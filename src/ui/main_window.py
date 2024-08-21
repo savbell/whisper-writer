@@ -4,8 +4,10 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QPushButton, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 class MainWindow(BaseWindow):
     openSettings = pyqtSignal()
@@ -55,6 +57,7 @@ class MainWindow(BaseWindow):
         """
         self.startListening.emit()
         self.hide()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

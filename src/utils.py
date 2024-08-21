@@ -1,6 +1,7 @@
 import yaml
 import os
 
+
 class ConfigManager:
     _instance = None
 
@@ -90,7 +91,8 @@ class ConfigManager:
         elif value_type == 'float':
             return float(value) if value is not None and value != '' else None
         elif value_type == 'bool':
-            return bool(value) if isinstance(value, bool) else value.lower() in ('true', 'yes', 'on', '1')
+            return bool(value) if isinstance(value, bool) else value.lower() in ('true', 'yes',
+                                                                                 'on', '1')
         elif value_type == 'int or null':
             if value is None or value == '':
                 return None
@@ -288,7 +290,8 @@ class ConfigManager:
         scripts_dir = os.path.join('scripts')
         if not os.path.exists(scripts_dir):
             return []
-        return [f[:-3] for f in os.listdir(scripts_dir) if f.endswith('.py') and f != '__init__.py']
+        return [f[:-3] for f in os.listdir(scripts_dir)
+                if f.endswith('.py') and f != '__init__.py']
 
     @classmethod
     def console_print(cls, message):
