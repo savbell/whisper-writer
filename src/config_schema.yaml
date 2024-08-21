@@ -46,7 +46,7 @@ model_options:
       model_path:
         value: null
         type: str
-        description: "The path to the local Whisper model. If not specified, the default model will be downloaded."
+        description: "Path to the folder containing the model files. Leave empty to use online models."
       vad_filter:
         value: false
         type: bool
@@ -143,18 +143,6 @@ post_processing:
     value: 0.005
     type: float
     description: "The delay in seconds between each key press when writing the transcribed text."
-  remove_trailing_period:
-    value: false
-    type: bool
-    description: "Set to true to remove the trailing period from the transcribed text."
-  add_trailing_space:
-    value: true
-    type: bool
-    description: "Set to true to add a space to the end of the transcribed text."
-  remove_capitalization:
-    value: false
-    type: bool
-    description: "Set to true to convert the transcribed text to lowercase."
   input_method:
     value: pynput
     type: str
@@ -163,6 +151,11 @@ post_processing:
       - pynput
       - ydotool
       - dotool
+  enabled_scripts:
+    value:
+      - add_trailing_space
+    type: list
+    description: "List of post-processing scripts to apply (in order)"
 
 # Miscellaneous settings
 misc:

@@ -53,6 +53,12 @@ class ConfigManager:
             if isinstance(value, dict) and k in value:
                 value = value[k]
                 schema = schema.get(k, {})
+            elif isinstance(value, list):
+                try:
+                    index = int(k)
+                    value = value[index]
+                except (ValueError, IndexError):
+                    return None
             else:
                 # If the key is not found in the config, check the schema
                 return cls._get_schema_value(key)
@@ -92,6 +98,8 @@ class ConfigManager:
                 return int(value)
             except ValueError:
                 return value  # Keep it as a string if it's not convertible to int
+        elif value_type == 'list':
+            return list(value) if value is not None else []
         else:
             return value  # For strings and other types, return as is
 
@@ -155,7 +163,10 @@ class ConfigManager:
                     default_config[key] = {}
                 self._merge_configs(default_config[key], value)
             else:
-                value_type = self.schema.get(key, {}).get('type')
+                schema_value = self.schema
+                for k in self._split_keys(key):
+                    schema_value = schema_value.get(k, {})
+                value_type = schema_value.get('type')
                 default_config[key] = self._convert_value(value, value_type)
 
     @classmethod
@@ -170,6 +181,11 @@ class ConfigManager:
                 new_key = f"{prefix}.{key}" if prefix else key
                 if isinstance(value, dict):
                     keys.extend(get_keys(value, new_key))
+                elif isinstance(value, list):
+                    keys.append(new_key)
+                    for i, item in enumerate(value):
+                        if isinstance(item, dict):
+                            keys.extend(get_keys(item, f"{new_key}.{i}"))
                 else:
                     keys.append(new_key)
             return keys
@@ -255,13 +271,24 @@ class ConfigManager:
             keys = []
             for key, value in schema.items():
                 new_key = f"{prefix}.{key}" if prefix else key
-                if isinstance(value, dict) and 'value' not in value:
-                    keys.extend(get_keys(value, new_key))
-                else:
-                    keys.append(new_key)
+                if isinstance(value, dict):
+                    if 'type' in value and value['type'] == 'list':
+                        keys.append(new_key)
+                    elif 'value' not in value:
+                        keys.extend(get_keys(value, new_key))
+                    else:
+                        keys.append(new_key)
             return keys
 
         return get_keys(cls._instance.schema)
+
+    @classmethod
+    def get_available_scripts(cls):
+        """Get a list of available post-processing scripts."""
+        scripts_dir = os.path.join('scripts')
+        if not os.path.exists(scripts_dir):
+            return []
+        return [f[:-3] for f in os.listdir(scripts_dir) if f.endswith('.py') and f != '__init__.py']
 
     @classmethod
     def console_print(cls, message):

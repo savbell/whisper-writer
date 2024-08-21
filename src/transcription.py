@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Optional
 from enum import Enum
 
 from utils import ConfigManager
+from post_processing import post_process
 
 class StreamingStatus(Enum):
     NOT_SUPPORTED = 0
@@ -125,10 +126,6 @@ class TranscriptionManager:
             self.stop_streaming_transcription()
         if self.backend:
             self.backend.cleanup()
-
-def post_process(text: str) -> str:
-    # Implement post-processing logic
-    return text
 
 class OpenAIBackend(TranscriptionBackend):
     def initialize(self):

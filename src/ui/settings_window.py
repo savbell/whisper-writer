@@ -1,7 +1,8 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QTabWidget, QGroupBox, QLabel, QLineEdit, QSpacerItem, QSizePolicy,
-                             QComboBox, QCheckBox, QPushButton, QScrollArea, QToolButton, QMessageBox)
+                             QComboBox, QCheckBox, QPushButton, QScrollArea, QToolButton, QMessageBox,
+                             QFileDialog)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon
 
@@ -123,7 +124,6 @@ class SettingsWindow(QWidget):
         self.settings_closed.emit()
         event.accept()
 
-
 class SettingWidget(QWidget):
     def __init__(self, config_key, meta, config_manager, binding_manager):
         super().__init__()
@@ -140,8 +140,8 @@ class SettingWidget(QWidget):
 
         # Use the last part of the key as the label
         label_text = self.config_key.split('.')[-1].replace('_', ' ').capitalize()
-        label = QLabel(label_text)
-        layout.addWidget(label)
+        self.label = QLabel(label_text)
+        layout.addWidget(self.label)
 
         if self.is_capability:
             self.input_widget = QLabel(str(self.meta['value']))
@@ -149,11 +149,25 @@ class SettingWidget(QWidget):
             self.input_widget = self.create_input_widget()
         layout.addWidget(self.input_widget)
 
+        # Add file browser button for model_path
+        if self.config_key.endswith('model_path'):
+            self.browse_button = QPushButton("Browse")
+            self.browse_button.clicked.connect(self.browse_folder)
+            layout.addWidget(self.browse_button)
+
         # Add help icon
         help_button = QToolButton()
         help_button.setIcon(QIcon.fromTheme("help-contents"))
         help_button.clicked.connect(self.show_help)
         layout.addWidget(help_button)
+
+        # If it's the scripts widget, align the label to the top
+        if self.config_key.endswith('enabled_scripts'):
+            layout.setAlignment(self.label, Qt.AlignTop)
+            layout.setAlignment(help_button, Qt.AlignTop)
+        else:
+            layout.setAlignment(self.label, Qt.AlignVCenter)
+            layout.setAlignment(help_button, Qt.AlignVCenter)
 
         self.setLayout(layout)
 
@@ -171,8 +185,38 @@ class SettingWidget(QWidget):
             return self.create_combobox()
         elif widget_type in ['str', 'int', 'float', 'int or null']:
             return self.create_line_edit()
+        elif widget_type == 'list' and self.config_key.endswith('enabled_scripts'):
+            return self.create_scripts_widget()
         else:
             return QLabel(f"Unsupported type: {widget_type}")
+
+    def create_scripts_widget(self):
+        widget = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)  # Reduce margins
+        widget.setLayout(layout)
+
+        available_scripts = self.config_manager.get_available_scripts()
+        enabled_scripts = self.config_manager.get_config_value(self.config_key)
+
+        self.script_checkboxes = {}
+        for script in available_scripts:
+            checkbox = QCheckBox(script)
+            checkbox.setChecked(script in enabled_scripts)
+            layout.addWidget(checkbox)
+            self.script_checkboxes[script] = checkbox
+
+        self.binding_manager.add_binding(self.config_key, widget,
+                                         self.get_enabled_scripts,
+                                         self.set_enabled_scripts)
+        return widget
+
+    def get_enabled_scripts(self, widget):
+        return [script for script, checkbox in self.script_checkboxes.items() if checkbox.isChecked()]
+
+    def set_enabled_scripts(self, widget, value):
+        for script, checkbox in self.script_checkboxes.items():
+            checkbox.setChecked(script in value)
 
     def create_checkbox(self):
         widget = QCheckBox()
@@ -209,6 +253,11 @@ class SettingWidget(QWidget):
                                              lambda w, v: w.setText(str(v) if v is not None else ''))
         return widget
 
+    def browse_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Model Folder")
+        if folder:
+            self.input_widget.setText(folder)
+
     @staticmethod
     def _parse_int_or_null(value):
         if value == '':
@@ -224,7 +273,11 @@ class BindingManager:
 
     def add_binding(self, config_key, widget, getter, setter):
         if 'capabilities' not in config_key.split('.'):
-            self.bindings[config_key] = Binding(config_key, widget, getter, setter)
+            if config_key.endswith('enabled_scripts'):
+                self.bindings[config_key] = ScriptsBinding(config_key, widget, getter, setter)
+            else:
+                self.bindings[config_key] = Binding(config_key, widget, getter, setter)
+
 
     def update_all_widgets(self):
         for binding in self.bindings.values():
@@ -242,6 +295,15 @@ class Binding:
         self.setter = setter
         self.config_manager = ConfigManager()
 
+    def update_widget(self):
+        value = self.config_manager.get_config_value(self.config_key)
+        self.setter(self.widget, value)
+
+    def update_config(self):
+        value = self.getter(self.widget)
+        self.config_manager.set_config_value(self.config_key, value)
+
+class ScriptsBinding(Binding):
     def update_widget(self):
         value = self.config_manager.get_config_value(self.config_key)
         self.setter(self.widget, value)
