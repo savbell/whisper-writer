@@ -14,9 +14,9 @@ class ConfigManager:
         """Initialize the ConfigManager with the given schema path."""
         if cls._instance is None:
             cls._instance = cls()
-            cls._instance.schema = cls._instance.load_config_schema(schema_path)
-            cls._instance.config = cls._instance.load_default_config()
-            cls._instance.load_user_config()
+            cls._instance.schema = cls._instance._load_config_schema(schema_path)
+            cls._instance.config = cls._instance._load_default_config()
+            cls._instance._load_user_config()
 
     @classmethod
     def get_schema(cls):
@@ -26,50 +26,97 @@ class ConfigManager:
         return cls._instance.schema
 
     @classmethod
-    def get_config_section(cls, *keys):
-        """Get a specific section of the configuration."""
+    def get_config_section(cls, key):
+        """Get a specific section of the configuration using a dotted key."""
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
 
+        keys = cls._split_keys(key)
         section = cls._instance.config
-        for key in keys:
-            if isinstance(section, dict) and key in section:
-                section = section[key]
+        for k in keys:
+            if isinstance(section, dict) and k in section:
+                section = section[k]
             else:
                 return {}
         return section
 
     @classmethod
-    def get_config_value(cls, *keys):
-        """Get a specific configuration value using nested keys."""
+    def get_config_value(cls, key):
+        """Get a specific configuration value using a dotted key."""
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
 
+        keys = cls._split_keys(key)
         value = cls._instance.config
-        for key in keys:
-            if isinstance(value, dict) and key in value:
-                value = value[key]
+        schema = cls.get_schema()
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+                schema = schema.get(k, {})
             else:
-                return None
-        return value
+                # If the key is not found in the config, check the schema
+                return cls._get_schema_value(key)
+
+        # Convert the value to the correct type based on the schema
+        value_type = schema.get('type')
+        return cls._convert_value(value, value_type)
 
     @classmethod
-    def set_config_value(cls, value, *keys):
-        """Set a specific configuration value using nested keys."""
+    def _get_schema_value(cls, key):
+        """Get a value from the schema if it's not in the config."""
+        schema = cls.get_schema()
+        keys = cls._split_keys(key)
+        value = schema
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                return None
+        if isinstance(value, dict) and 'value' in value:
+            return cls._convert_value(value['value'], value.get('type'))
+        return None
+
+    @staticmethod
+    def _convert_value(value, value_type):
+        """Convert a value to the specified type."""
+        if value_type == 'int':
+            return int(value) if value is not None and value != '' else None
+        elif value_type == 'float':
+            return float(value) if value is not None and value != '' else None
+        elif value_type == 'bool':
+            return bool(value) if isinstance(value, bool) else value.lower() in ('true', 'yes', 'on', '1')
+        elif value_type == 'int or null':
+            if value is None or value == '':
+                return None
+            try:
+                return int(value)
+            except ValueError:
+                return value  # Keep it as a string if it's not convertible to int
+        else:
+            return value  # For strings and other types, return as is
+
+    @classmethod
+    def set_config_value(cls, key, value):
+        """Set a specific configuration value using a dotted key."""
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
 
+        keys = cls._split_keys(key)
         config = cls._instance.config
-        for key in keys[:-1]:
-            if key not in config:
-                config[key] = {}
-            elif not isinstance(config[key], dict):
-                config[key] = {}
-            config = config[key]
-        config[keys[-1]] = value
+        schema = cls._instance.schema
+        for k in keys[:-1]:
+            if k not in config:
+                config[k] = {}
+            if k not in schema:
+                schema[k] = {}
+            config = config[k]
+            schema = schema[k]
 
-    @staticmethod
-    def load_config_schema(schema_path=None):
+        value_type = schema[keys[-1]].get('type') if keys[-1] in schema else None
+        config[keys[-1]] = cls._convert_value(value, value_type)
+
+    @classmethod
+    def _load_config_schema(cls, schema_path=None):
         """Load the configuration schema from a YAML file."""
         if schema_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -79,45 +126,78 @@ class ConfigManager:
             schema = yaml.safe_load(file)
         return schema
 
-    def load_default_config(self):
+    def _load_default_config(self):
         """Load default configuration values from the schema."""
         def extract_value(item):
             if isinstance(item, dict):
                 if 'value' in item:
-                    return item['value']
+                    return self._convert_value(item['value'], item.get('type'))
                 else:
                     return {k: extract_value(v) for k, v in item.items()}
             return item
 
-        config = {}
-        for category, settings in self.schema.items():
-            config[category] = extract_value(settings)
-        return config
+        return extract_value(self.schema)
 
-    def load_user_config(self, config_path=os.path.join('src', 'config.yaml')):
+    def _load_user_config(self, config_path=os.path.join('src', 'config.yaml')):
         """Load user configuration and merge with default config."""
-        def deep_update(source, overrides):
-            for key, value in overrides.items():
-                if isinstance(value, dict) and key in source:
-                    deep_update(source[key], value)
-                else:
-                    source[key] = value
-
         if config_path and os.path.isfile(config_path):
             try:
                 with open(config_path, 'r') as file:
                     user_config = yaml.safe_load(file)
-                    deep_update(self.config, user_config)
+                    self._merge_configs(self.config, user_config)
             except yaml.YAMLError:
                 print("Error in configuration file. Using default configuration.")
 
+    def _merge_configs(self, default_config, user_config):
+        for key, value in user_config.items():
+            if isinstance(value, dict):
+                if key not in default_config:
+                    default_config[key] = {}
+                self._merge_configs(default_config[key], value)
+            else:
+                value_type = self.schema.get(key, {}).get('type')
+                default_config[key] = self._convert_value(value, value_type)
+
     @classmethod
-    def save_config(cls, config_path=os.path.join('src', 'config.yaml')):
-        """Save the current configuration to a YAML file."""
+    def get_all_keys(cls):
+        """Get all configuration keys in dotted format."""
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
+
+        def get_keys(config, prefix=''):
+            keys = []
+            for key, value in config.items():
+                new_key = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict):
+                    keys.extend(get_keys(value, new_key))
+                else:
+                    keys.append(new_key)
+            return keys
+
+        return get_keys(cls._instance.config)
+
+    @classmethod
+    def save_config(cls, config_path=os.path.join('src', 'config.yaml')):
+        """Save the current configuration to a YAML file, excluding capabilities."""
+        if cls._instance is None:
+            raise RuntimeError("ConfigManager not initialized")
+
+        config_to_save = cls._instance.config.copy()
+        cls._remove_capabilities(config_to_save)
+
         with open(config_path, 'w') as file:
-            yaml.dump(cls._instance.config, file, default_flow_style=False)
+            yaml.dump(config_to_save, file, default_flow_style=False)
+
+    @classmethod
+    def _remove_capabilities(cls, config):
+        """Recursively remove 'capabilities' from the config."""
+        if isinstance(config, dict):
+            config.pop('capabilities', None)
+            for value in config.values():
+                cls._remove_capabilities(value)
+        elif isinstance(config, list):
+            for item in config:
+                cls._remove_capabilities(item)
 
     @classmethod
     def reload_config(cls):
@@ -126,14 +206,62 @@ class ConfigManager:
         """
         if cls._instance is None:
             raise RuntimeError("ConfigManager not initialized")
-        cls._instance.config = cls._instance.load_default_config()
-        cls._instance.load_user_config()
+        cls._instance.config = cls._instance._load_default_config()
+        cls._instance._load_user_config()
 
     @classmethod
     def config_file_exists(cls):
         """Check if a valid config file exists."""
         config_path = os.path.join('src', 'config.yaml')
         return os.path.isfile(config_path)
+
+    @staticmethod
+    def _split_keys(dotted_key):
+        return dotted_key.split('.')
+
+    @classmethod
+    def _remove_config_value(cls, key):
+        """Remove a configuration value using a dotted key."""
+        if cls._instance is None:
+            raise RuntimeError("ConfigManager not initialized")
+
+        keys = cls._split_keys(key)
+        config = cls._instance.config
+        for k in keys[:-1]:
+            if k in config:
+                config = config[k]
+            else:
+                return  # Key doesn't exist, nothing to remove
+        if keys[-1] in config:
+            del config[keys[-1]]
+
+    @classmethod
+    def clean_config(cls):
+        """Remove configuration values that are not in the schema."""
+        if cls._instance is None:
+            raise RuntimeError("ConfigManager not initialized")
+
+        schema_keys = set(cls._get_all_keys_from_schema())
+        config_keys = set(cls.get_all_keys())
+        keys_to_remove = config_keys - schema_keys
+
+        for key in keys_to_remove:
+            cls._remove_config_value(key)
+
+    @classmethod
+    def _get_all_keys_from_schema(cls):
+        """Get all keys from the schema in dotted format."""
+        def get_keys(schema, prefix=''):
+            keys = []
+            for key, value in schema.items():
+                new_key = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict) and 'value' not in value:
+                    keys.extend(get_keys(value, new_key))
+                else:
+                    keys.append(new_key)
+            return keys
+
+        return get_keys(cls._instance.schema)
 
     @classmethod
     def console_print(cls, message):

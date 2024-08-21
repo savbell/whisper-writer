@@ -296,7 +296,7 @@ class KeyListener:
 
     def select_backend_from_config(self):
         """Select the active backend based on configuration."""
-        preferred_backend = ConfigManager.get_config_value('recording_options', 'input_backend')
+        preferred_backend = ConfigManager.get_config_value('recording_options.input_backend')
 
         if preferred_backend == 'auto':
             self.select_active_backend()
@@ -353,7 +353,7 @@ class KeyListener:
 
     def load_activation_keys(self):
         """Load activation keys from configuration."""
-        key_combination = ConfigManager.get_config_value('recording_options', 'activation_key')
+        key_combination = ConfigManager.get_config_value('recording_options.activation_key')
         keys = self.parse_key_combination(key_combination)
         self.set_activation_keys(keys)
 

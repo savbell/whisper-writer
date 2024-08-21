@@ -63,6 +63,11 @@ model_options:
         value: null
         type: str
         description: "A string used as an initial prompt to condition the transcription."
+      capabilities:
+        streaming:
+          value: false
+          type: bool
+          description: "Whether this backend supports streaming transcription."
     openai:
       model:
         value: whisper-1
@@ -86,6 +91,11 @@ model_options:
         value: null
         type: str
         description: "A string used as an initial prompt to condition the transcription."
+      capabilities:
+        streaming:
+          value: false
+          type: bool
+          description: "Whether this backend supports streaming transcription."
 
 # Configuration options for activation and recording
 recording_options:
@@ -112,7 +122,7 @@ recording_options:
       - hold_to_record
   sound_device:
     value: null
-    type: str
+    type: "int or null"
     description: "The numeric index of the sound device to use for recording. To find device numbers, run `python -m sounddevice`"
   sample_rate:
     value: 16000

@@ -8,9 +8,9 @@ from enum import Enum
 from utils import ConfigManager
 
 class StreamingStatus(Enum):
-    IDLE = 0
-    STREAMING = 1
-    NOT_SUPPORTED = 2
+    NOT_SUPPORTED = 0
+    IDLE = 1
+    STREAMING = 2
     ALREADY_RUNNING = 3
     FAILED_TO_START = 4
 
@@ -44,7 +44,7 @@ class TranscriptionManager:
         self.config = ConfigManager.get_config_section('model_options')
         self.backend = None
         self.streaming_thread = None
-        self.streaming_status = StreamingStatus.IDLE
+        self.streaming_status = None
         self._initialize_backend()
 
     def _initialize_backend(self):
@@ -58,6 +58,7 @@ class TranscriptionManager:
 
         try:
             self.backend.initialize()
+            self.streaming_status = self.backend.supports_streaming()
         except Exception as e:
             traceback.print_exc()
             print(f"Failed to initialize backend: {e}")
@@ -119,7 +120,7 @@ class TranscriptionManager:
         self._initialize_backend()
 
     def cleanup(self):
-        if self.get_streaming_status():
+        if self.get_streaming_status() != StreamingStatus.NOT_SUPPORTED:
             self.stop_streaming_transcription()
         if self.backend:
             self.backend.cleanup()
@@ -157,7 +158,7 @@ class FasterWhisperBackend(TranscriptionBackend):
             raise RuntimeError("Failed to import faster_whisper. Make sure it's installed.")
 
         self.WhisperModel = WhisperModel
-        self.config = ConfigManager.get_config_section('model_options', 'backends', 'faster_whisper')
+        self.config = ConfigManager.get_config_section('model_options.backends.faster_whisper')
         self.model = None
         self._load_model()
 
@@ -225,8 +226,9 @@ class FasterWhisperBackend(TranscriptionBackend):
         }
 
 
-    def supports_streaming(self) -> bool:
-        return False
+    def supports_streaming(self) -> StreamingStatus:
+        streaming_supported = ConfigManager.get_config_value('model_options.backends.faster_whisper.capabilities.streaming')
+        return StreamingStatus.IDLE if streaming_supported else StreamingStatus.NOT_SUPPORTED
 
     def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None], sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
         raise NotImplementedError("Streaming is not supported for Faster Whisper backend")

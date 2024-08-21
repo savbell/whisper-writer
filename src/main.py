@@ -62,7 +62,7 @@ class WhisperWriterApp(QObject):
         self.main_window.startListening.connect(self.key_listener.start)
         self.main_window.closeApp.connect(self.exit_app)
 
-        if not ConfigManager.get_config_value('misc', 'hide_status_window'):
+        if not ConfigManager.get_config_value('misc.hide_status_window'):
             self.status_window = StatusWindow()
 
         self.create_tray_icon()
@@ -130,7 +130,7 @@ class WhisperWriterApp(QObject):
         Called when the activation key combination is pressed.
         """
         if self.result_thread and self.result_thread.isRunning():
-            recording_mode = ConfigManager.get_config_value('recording_options', 'recording_mode')
+            recording_mode = ConfigManager.get_config_value('recording_options.recording_mode')
             if recording_mode == 'press_to_toggle':
                 self.result_thread.stop_recording()
             elif recording_mode == 'continuous':
@@ -143,7 +143,7 @@ class WhisperWriterApp(QObject):
         """
         Called when the activation key combination is released.
         """
-        if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'hold_to_record':
+        if ConfigManager.get_config_value('recording_options.recording_mode') == 'hold_to_record':
             if self.result_thread and self.result_thread.isRunning():
                 self.result_thread.stop_recording()
 
@@ -155,7 +155,7 @@ class WhisperWriterApp(QObject):
             return
 
         self.result_thread = ResultThread(self.transcription_manager)
-        if not ConfigManager.get_config_value('misc', 'hide_status_window'):
+        if not ConfigManager.get_config_value('misc.hide_status_window'):
             self.result_thread.statusSignal.connect(self.status_window.updateStatus)
             self.status_window.closeSignal.connect(self.stop_result_thread)
         self.result_thread.resultSignal.connect(self.on_transcription_complete)
@@ -174,10 +174,10 @@ class WhisperWriterApp(QObject):
         """
         self.input_simulator.typewrite(result)
 
-        if ConfigManager.get_config_value('misc', 'noise_on_completion'):
+        if ConfigManager.get_config_value('misc.noise_on_completion'):
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
 
-        if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
+        if ConfigManager.get_config_value('recording_options.recording_mode') == 'continuous':
             self.start_result_thread()
         else:
             self.key_listener.start()

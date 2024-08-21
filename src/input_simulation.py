@@ -28,7 +28,7 @@ class InputSimulator:
         """
         Initialize the InputSimulator with the specified configuration.
         """
-        self.input_method = ConfigManager.get_config_value('post_processing', 'input_method')
+        self.input_method = ConfigManager.get_config_value('post_processing.input_method')
         self.dotool_process = None
 
         if self.input_method == 'pynput':
@@ -58,7 +58,7 @@ class InputSimulator:
         Args:
             text (str): The text to type.
         """
-        interval = ConfigManager.get_config_value('post_processing', 'writing_key_press_delay')
+        interval = ConfigManager.get_config_value('post_processing.writing_key_press_delay')
         if self.input_method == 'pynput':
             self._typewrite_pynput(text, interval)
         elif self.input_method == 'ydotool':

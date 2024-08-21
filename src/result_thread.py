@@ -94,9 +94,6 @@ class ResultThread(QThread):
             transcription_time = end_time - start_time
             ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {transcription_result["processed_text"]}')
 
-            if not self.is_running:
-                return
-
             self.statusSignal.emit('idle')
             self.resultSignal.emit(transcription_result["processed_text"])
 
@@ -134,6 +131,10 @@ class ResultThread(QThread):
         audio_buffer = deque(maxlen=frame_size)
         recording = []
 
+        sound_device = recording_options.get('sound_device')
+        if sound_device == '':
+            sound_device = None  # Use default device if empty string
+
         data_ready = Event()
 
         def audio_callback(indata, frames, time, status):
@@ -143,8 +144,7 @@ class ResultThread(QThread):
             data_ready.set()
 
         with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='int16',
-                            blocksize=frame_size, device=recording_options.get('sound_device'),
-                            callback=audio_callback):
+                            blocksize=frame_size, device=sound_device, callback=audio_callback):
             while self.is_running and self.is_recording:
                 data_ready.wait()
                 data_ready.clear()
