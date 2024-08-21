@@ -418,7 +418,6 @@ class EvdevBackend(InputBackend):
     """
     Backend for handling input events using the evdev library.
     """
-
     @classmethod
     def is_available(cls) -> bool:
         """Check if the evdev library is available."""
@@ -749,7 +748,6 @@ class PynputBackend(InputBackend):
     """
     Input backend implementation using the pynput library.
     """
-
     @classmethod
     def is_available(cls) -> bool:
         """Check if pynput library is available."""

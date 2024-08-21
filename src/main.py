@@ -11,7 +11,7 @@ from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
 from transcription import TranscriptionManager
-from keyboard_simulation import KeyboardSimulator
+from keyboard_simulator import KeyboardSimulator
 from utils import ConfigManager
 
 
