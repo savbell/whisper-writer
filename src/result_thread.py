@@ -9,7 +9,6 @@ from PyQt5.QtCore import QThread, QMutex, pyqtSignal
 from collections import deque
 from threading import Event
 
-from transcription import transcribe
 from utils import ConfigManager
 
 
@@ -32,14 +31,14 @@ class ResultThread(QThread):
     statusSignal = pyqtSignal(str)
     resultSignal = pyqtSignal(str)
 
-    def __init__(self, local_model=None):
+    def __init__(self, transcription_manager):
         """
         Initialize the ResultThread.
 
-        :param local_model: Local transcription model (if applicable)
+        :param transcription_manager: TranscriptionManager instance
         """
         super().__init__()
-        self.local_model = local_model
+        self.transcription_manager = transcription_manager
         self.is_recording = False
         self.is_running = True
         self.sample_rate = None
@@ -85,17 +84,21 @@ class ResultThread(QThread):
 
             # Time the transcription process
             start_time = time.time()
-            result = transcribe(audio_data, self.local_model)
+            transcription_result = self.transcription_manager.transcribe(audio_data, sample_rate=self.sample_rate)
             end_time = time.time()
 
+            if transcription_result is None:
+                self.statusSignal.emit('error')
+                return
+
             transcription_time = end_time - start_time
-            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {result}')
+            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {transcription_result["processed_text"]}')
 
             if not self.is_running:
                 return
 
             self.statusSignal.emit('idle')
-            self.resultSignal.emit(result)
+            self.resultSignal.emit(transcription_result["processed_text"])
 
         except Exception as e:
             traceback.print_exc()

@@ -12,7 +12,7 @@ from result_thread import ResultThread
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
-from transcription import create_local_model
+from transcription import TranscriptionManager
 from input_simulation import InputSimulator
 from utils import ConfigManager
 
@@ -25,6 +25,9 @@ class WhisperWriterApp(QObject):
         super().__init__()
         self.app = QApplication(sys.argv)
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
+        self.key_listener = None
+        self.input_simulator = None
+        self.transcription_manager = None
 
         ConfigManager.initialize()
 
@@ -48,9 +51,9 @@ class WhisperWriterApp(QObject):
         self.key_listener.add_callback("on_activate", self.on_activation)
         self.key_listener.add_callback("on_deactivate", self.on_deactivation)
 
-        model_options = ConfigManager.get_config_section('model_options')
-        model_path = model_options.get('local', {}).get('model_path')
-        self.local_model = create_local_model() if not model_options.get('use_api') else None
+        self.transcription_manager = TranscriptionManager()
+        if not self.transcription_manager:
+            QMessageBox.critical(None, "Initialization Error", f"Failed to initialize transcription: {str(e)}")
 
         self.result_thread = None
 
@@ -93,6 +96,8 @@ class WhisperWriterApp(QObject):
             self.key_listener.stop()
         if self.input_simulator:
             self.input_simulator.cleanup()
+        if self.transcription_manager:
+            self.transcription_manager.cleanup()
 
     def exit_app(self):
         """
@@ -111,12 +116,13 @@ class WhisperWriterApp(QObject):
         """
         If settings is closed without saving on first run, initialize the components with default values.
         """
-        if not os.path.exists(os.path.join('src', 'config.yaml')):
+        if not ConfigManager.config_file_exists():
             QMessageBox.information(
                 self.settings_window,
                 'Using Default Values',
                 'Settings closed without saving. Default values are being used.'
             )
+            ConfigManager.save_config()  # Save default config to file
             self.initialize_components()
 
     def on_activation(self):
@@ -148,7 +154,7 @@ class WhisperWriterApp(QObject):
         if self.result_thread and self.result_thread.isRunning():
             return
 
-        self.result_thread = ResultThread(self.local_model)
+        self.result_thread = ResultThread(self.transcription_manager)
         if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.result_thread.statusSignal.connect(self.status_window.updateStatus)
             self.status_window.closeSignal.connect(self.stop_result_thread)
