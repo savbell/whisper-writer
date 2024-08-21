@@ -11,7 +11,7 @@ from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
 from transcription import TranscriptionManager
-from input_simulation import InputSimulator
+from keyboard_simulation import KeyboardSimulator
 from utils import ConfigManager
 
 
@@ -27,7 +27,7 @@ class WhisperWriterApp(QObject):
         self.app = QApplication(sys.argv)
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
         self.key_listener = None
-        self.input_simulator = None
+        self.keyboard_simulator = None
         self.transcription_manager = None
 
         ConfigManager.initialize()
@@ -49,7 +49,7 @@ class WhisperWriterApp(QObject):
         """
         Initialize the components of the application.
         """
-        self.input_simulator = InputSimulator()
+        self.keyboard_simulator = KeyboardSimulator()
 
         self.key_listener = KeyListener()
         self.key_listener.add_callback("on_activate", self.on_activation)
@@ -98,8 +98,8 @@ class WhisperWriterApp(QObject):
     def cleanup(self):
         if self.key_listener:
             self.key_listener.stop()
-        if self.input_simulator:
-            self.input_simulator.cleanup()
+        if self.keyboard_simulator:
+            self.keyboard_simulator.cleanup()
         if self.transcription_manager:
             self.transcription_manager.cleanup()
 
@@ -194,7 +194,7 @@ class WhisperWriterApp(QObject):
         Process the transcription result on the main thread.
         Type the result, play a completion sound if enabled, and prepare for the next recording.
         """
-        self.input_simulator.typewrite(result)
+        self.keyboard_simulator.typewrite(result)
 
         if ConfigManager.get_config_value('misc.noise_on_completion'):
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)

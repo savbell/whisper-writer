@@ -19,16 +19,16 @@ def run_command_or_exit_on_failure(command):
         print(f"Error running command: {e}")
         exit(1)
 
-class InputSimulator:
+class KeyboardSimulator:
     """
     A class to simulate keyboard input using various methods.
     """
 
     def __init__(self):
         """
-        Initialize the InputSimulator with the specified configuration.
+        Initialize the KeyboardSimulator with the specified configuration.
         """
-        self.input_method = ConfigManager.get_config_value('post_processing.input_method')
+        self.input_method = ConfigManager.get_config_value('post_processing.keyboard_simulator')
         self.dotool_process = None
 
         if self.input_method == 'pynput':

@@ -92,7 +92,7 @@ class ResultThread(threading.Thread):
                 return
 
             transcription_time = end_time - start_time
-            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line: {transcription_result["processed_text"]}')
+            ConfigManager.console_print(f'Transcription completed in {transcription_time:.2f} seconds. Post-processed line:{transcription_result["processed_text"]}')
 
             self.emit_status('idle')
             self.emit_result(transcription_result["processed_text"])

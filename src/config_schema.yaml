@@ -143,7 +143,7 @@ post_processing:
     value: 0.005
     type: float
     description: "The delay in seconds between each key press when writing the transcribed text."
-  input_method:
+  keyboard_simulator:
     value: pynput
     type: str
     description: "The method to use for simulating keyboard input."
