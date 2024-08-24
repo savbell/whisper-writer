@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QRectF
-from PyQt5.QtGui import QPainter, QBrush, QColor, QFont, QPainterPath
+from PyQt5.QtGui import QPainter, QBrush, QColor, QFont, QPainterPath, QGuiApplication
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QMainWindow
 
 
@@ -26,31 +26,54 @@ class BaseWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.main_widget)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
 
-        title_layout = QHBoxLayout()
+        # Create a widget for the title bar
+        title_bar = QWidget()
+        title_bar_layout = QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add the title label
         title_label = QLabel('WhisperWriter')
         title_label.setFont(QFont('Segoe UI', 12, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("color: #404040;")
 
-        close_button = QPushButton('X')
+        # Create a widget for the close button
+        close_button_widget = QWidget()
+        close_button_layout = QHBoxLayout(close_button_widget)
+        close_button_layout.setContentsMargins(0, 0, 0, 0)
+
+        close_button = QPushButton('×')
         close_button.setFixedSize(25, 25)
+        close_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                color: #404040;
+            }
+            QPushButton:hover {
+                color: #000000;
+            }
+        """)
         close_button.clicked.connect(self.handleCloseButton)
 
-        title_layout.addStretch(1)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch(1)
-        title_layout.addWidget(close_button, alignment=Qt.AlignRight)
+        close_button_layout.addWidget(close_button, alignment=Qt.AlignRight)
 
-        self.main_layout.addLayout(title_layout)
+        # Add widgets to the title bar layout
+        title_bar_layout.addWidget(QWidget(), 1)  # Left spacer
+        title_bar_layout.addWidget(title_label, 3)  # Title (with more width)
+        title_bar_layout.addWidget(close_button_widget, 1)  # Close button
+
+        self.main_layout.addWidget(title_bar)
         self.setCentralWidget(self.main_widget)
 
     def setWindowPosition(self):
         """
         Set the window position to the center of the screen.
         """
-        screen_geometry = QApplication.desktop().availableGeometry()
-        x = (screen_geometry.width() - self.width()) // 2
-        y = (screen_geometry.height() - self.height()) // 2
-        self.move(x, y)
+        center_point = QGuiApplication.primaryScreen().availableGeometry().center()
+        frame_geometry = self.frameGeometry()
+        frame_geometry.moveCenter(center_point)
+        self.move(frame_geometry.topLeft())
 
     def handleCloseButton(self):
         """
