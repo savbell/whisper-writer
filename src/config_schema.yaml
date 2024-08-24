@@ -26,8 +26,6 @@ model_options:
       value: whisper-1
       type: str
       description: "The model to use for transcription. Currently only 'whisper-1' is available."
-      options:
-        - whisper-1
     base_url:
       value: https://api.openai.com/v1
       type: str

@@ -32,9 +32,9 @@ class SettingsWindow(BaseWindow):
         self.create_buttons()
 
         # Connect the use_api checkbox state change
-        self.use_api_checkbox = self.findChild(QCheckBox, 'transcription_model_options_use_api_input')
+        self.use_api_checkbox = self.findChild(QCheckBox, 'model_options_use_api_input')
         if self.use_api_checkbox:
-            self.use_api_checkbox.stateChanged.connect(self.toggle_api_local_options)
+            self.use_api_checkbox.stateChanged.connect(lambda: self.toggle_api_local_options(self.use_api_checkbox.isChecked()))
             self.toggle_api_local_options(self.use_api_checkbox.isChecked())
 
     def create_tabs(self):
@@ -87,8 +87,14 @@ class SettingsWindow(BaseWindow):
         item_layout.addWidget(help_button)
         layout.addLayout(item_layout)
 
-        # Set object name for the widget
+        # Set object names for the widget, label, and help button
         widget_name = f"{category}_{sub_category}_{key}_input" if sub_category else f"{category}_{key}_input"
+        label_name = f"{category}_{sub_category}_{key}_label" if sub_category else f"{category}_{key}_label"
+        help_name = f"{category}_{sub_category}_{key}_help" if sub_category else f"{category}_{key}_help"
+        
+        label.setObjectName(label_name)
+        help_button.setObjectName(help_name)
+        
         if isinstance(widget, QWidget):
             widget.setObjectName(widget_name)
         else:
@@ -116,7 +122,7 @@ class SettingsWindow(BaseWindow):
         widget = QCheckBox()
         widget.setChecked(value)
         if key == 'use_api':
-            widget.setObjectName('transcription_model_options_use_api_input')
+            widget.setObjectName('model_options_use_api_input')
         return widget
 
     def create_combobox(self, value, options):
@@ -136,6 +142,7 @@ class SettingsWindow(BaseWindow):
             browse_button = QPushButton('Browse')
             browse_button.clicked.connect(lambda: self.browse_model_path(widget))
             layout.addWidget(browse_button)
+            layout.setContentsMargins(0, 0, 0, 0)
             container = QWidget()
             container.setLayout(layout)
             return container
@@ -249,7 +256,16 @@ class SettingsWindow(BaseWindow):
     def toggle_widget_visibility(self, widget, category, sub_category, key, use_api):
         if sub_category in ['api', 'local']:
             widget.setVisible(use_api if sub_category == 'api' else not use_api)
-            widget.parent().setVisible(widget.isVisible())  # Also toggle the parent layout
+            
+            # Also toggle visibility of the corresponding label and help button
+            label = self.findChild(QLabel, f"{category}_{sub_category}_{key}_label")
+            help_button = self.findChild(QToolButton, f"{category}_{sub_category}_{key}_help")
+            
+            if label:
+                label.setVisible(use_api if sub_category == 'api' else not use_api)
+            if help_button:
+                help_button.setVisible(use_api if sub_category == 'api' else not use_api)
+
 
     def iterate_settings(self, func):
         """Iterate over all settings and apply a function to each."""
