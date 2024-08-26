@@ -115,8 +115,8 @@ class ApplicationController:
         return exit_code
 
     def start_core_components(self):
-        self.ui_manager.show_status_window = ConfigManager.get_value('global_options.show_status_window')
-        print(self.ui_manager.show_status_window)
+        self.ui_manager.show_status_window = ConfigManager.get_value(
+            'global_options.show_status_window')
         self.input_manager = InputManager(self.event_bus)
         self.audio_manager = AudioManager(self.event_bus)
         self.input_manager.start()
