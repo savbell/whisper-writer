@@ -16,10 +16,10 @@ global_options:
     value: true
     type: bool
     description: "Set to true to print the script status and transcribed text to the terminal."
-  hide_status_window:
-    value: false
+  show_status_window:
+    value: true
     type: bool
-    description: "Set to true to hide the status window during operation."
+    description: "Set to false to hide the status window during operation."
   noise_on_completion:
     value: false
     type: bool

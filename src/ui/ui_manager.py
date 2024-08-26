@@ -11,6 +11,7 @@ class UIManager:
         self.app = app
         self.app.setQuitOnLastWindowClosed(False)
         self.is_closing = False
+        self.show_status_window = False
 
         self.main_window = MainWindow()
         self.settings_window = SettingsWindow()
@@ -33,10 +34,11 @@ class UIManager:
         self.tray_icon.show()
 
     def handle_profile_state_change(self, message):
-        if message:
-            self.show_status(message)
-        else:
-            self.hide_status()
+        if self.show_status_window:
+            if message:
+                self.show_status(message)
+            else:
+                self.hide_status()
 
     def show_status(self, message):
         self.status_window.show_message(message)
