@@ -1,6 +1,6 @@
 import sys
 import os
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QTimer
+from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QFont, QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QHBoxLayout
 
@@ -10,16 +10,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 class StatusWindow(BaseWindow):
-    statusSignal = pyqtSignal(str)
-    closeSignal = pyqtSignal()
-
     def __init__(self):
         """
         Initialize the status window.
         """
         super().__init__('WhisperWriter Status', 320, 120)
         self.initStatusUI()
-        self.statusSignal.connect(self.updateStatus, Qt.QueuedConnection)
 
     def initStatusUI(self):
         """
@@ -43,6 +39,7 @@ class StatusWindow(BaseWindow):
 
         self.status_label = QLabel('Recording...')
         self.status_label.setFont(QFont('Segoe UI', 12))
+        self.status_label.setStyleSheet("color: #505050;")
 
         status_layout.addStretch(1)
         status_layout.addWidget(self.icon_label)
@@ -68,38 +65,15 @@ class StatusWindow(BaseWindow):
         self.move(x, y)
         super().show()
 
-    def closeEvent(self, event):
-        """
-        Emit the close signal when the window is closed.
-        """
-        self.closeSignal.emit()
-        super().closeEvent(event)
-
     @pyqtSlot(str)
-    def updateStatus(self, status):
+    def show_message(self, message):
         """
         Update the status window based on the given status.
         """
-        if status == 'recording':
+        if 'recording' in message or 'streaming' in message:
             self.icon_label.setPixmap(self.microphone_pixmap)
-            self.status_label.setText('Recording...')
-            self.show()
-        elif status == 'transcribing':
+
+        elif 'transcribing' in message:
             self.icon_label.setPixmap(self.pencil_pixmap)
-            self.status_label.setText('Transcribing...')
-
-        if status in ('idle', 'error', 'cancel'):
-            self.close()
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-
-    status_window = StatusWindow()
-    status_window.show()
-
-    # Simulate status updates
-    QTimer.singleShot(3000, lambda: status_window.statusSignal.emit('transcribing'))
-    QTimer.singleShot(6000, lambda: status_window.statusSignal.emit('idle'))
-
-    sys.exit(app.exec_())
+        self.status_label.setText(message)
+        self.show()

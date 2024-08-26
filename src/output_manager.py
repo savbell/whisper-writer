@@ -4,7 +4,8 @@ import signal
 import time
 from pynput.keyboard import Controller as PynputController
 
-from utils import ConfigManager
+from config_manager import ConfigManager
+from event_bus import EventBus
 
 
 def run_command_or_exit_on_failure(command):
@@ -21,26 +22,27 @@ def run_command_or_exit_on_failure(command):
         exit(1)
 
 
-class KeyboardSimulator:
+class OutputManager:
     """
-    A class to simulate keyboard input using various methods.
+    A class to simulate keyboard output using various methods.
     """
 
-    def __init__(self):
+    def __init__(self, profile_name: str, event_bus: EventBus):
         """
-        Initialize the KeyboardSimulator with the specified configuration.
+        Initialize the OutputManager with the specified configuration.
         """
-        self.input_method = ConfigManager.get_config_value('post_processing.keyboard_simulator')
+        self.config = ConfigManager.get_section('post_processing', profile_name)
+        self.output_method = self.config.get('keyboard_simulator')
         self.dotool_process = None
 
-        if self.input_method == 'pynput':
+        if self.output_method == 'pynput':
             self.keyboard = PynputController()
-        elif self.input_method == 'dotool':
+        elif self.output_method == 'dotool':
             self._initialize_dotool()
 
     def _initialize_dotool(self):
         """
-        Initialize the dotool process for input simulation.
+        Initialize the dotool process for output simulation.
         """
         self.dotool_process = subprocess.Popen("dotool", stdin=subprocess.PIPE, text=True)
         assert self.dotool_process.stdin is not None
@@ -60,12 +62,12 @@ class KeyboardSimulator:
         Args:
             text (str): The text to type.
         """
-        interval = ConfigManager.get_config_value('post_processing.writing_key_press_delay')
-        if self.input_method == 'pynput':
+        interval = self.config.get('writing_key_press_delay')
+        if self.output_method == 'pynput':
             self._typewrite_pynput(text, interval)
-        elif self.input_method == 'ydotool':
+        elif self.output_method == 'ydotool':
             self._typewrite_ydotool(text, interval)
-        elif self.input_method == 'dotool':
+        elif self.output_method == 'dotool':
             self._typewrite_dotool(text, interval)
 
     def _typewrite_pynput(self, text, interval):
@@ -116,5 +118,5 @@ class KeyboardSimulator:
         """
         Perform cleanup operations, such as terminating the dotool process.
         """
-        if self.input_method == 'dotool':
+        if self.output_method == 'dotool':
             self._terminate_dotool()
