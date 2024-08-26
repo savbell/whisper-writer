@@ -1,7 +1,7 @@
 import os
 import sys
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QPushButton, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal
 
 from ui.base_window import BaseWindow
@@ -45,7 +45,7 @@ class MainWindow(BaseWindow):
         self.main_layout.addLayout(button_layout)
         self.main_layout.addStretch(1)
 
-    def close_event(self, event):
+    def closeEvent(self, event):
         """
         Close the application when the main window is closed.
         """
@@ -58,10 +58,3 @@ class MainWindow(BaseWindow):
         """
         self.start_listening.emit()
         self.hide()
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
