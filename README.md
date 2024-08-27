@@ -111,48 +111,61 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     <img src="./assets/ww-settings-demo.gif" alt="WhisperWriter Settings window demo gif" width="350" height="350">
 </p>
 
-#### Model Options
-- `use_api`: Toggle to choose whether to use the OpenAI API or a local Whisper model for transcription. (Default: `false`)
-- `common`: Options common to both API and local models.
-  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes). (Default: `null`)
-  - `temperature`: Controls the randomness of the transcription output. Lower values make the output more focused and deterministic. (Default: `0.0`)
-  - `initial_prompt`: A string used as an initial prompt to condition the transcription. More info: [OpenAI Prompting Guide](https://platform.openai.com/docs/guides/speech-to-text/prompting). (Default: `null`)
+### Global Options
 
-- `api`: Configuration options for the OpenAI API. See the [OpenAI API documentation](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more information.
-  - `model`: The model to use for transcription. Currently, only `whisper-1` is available. (Default: `whisper-1`)
-  - `base_url`: The base URL for the API. Can be changed to use a local API endpoint, such as [LocalAI](https://localai.io/). (Default: `https://api.openai.com/v1`)
-  - `api_key`: Your API key for the OpenAI API. Required for non-local API usage. (Default: `null`)
+These options apply to all profiles:
 
-- `local`: Configuration options for the local Whisper model.
-  - `model`: The model to use for transcription. The larger models provide better accuracy but are slower. See [available models and languages](https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages). (Default: `base`)
-  - `device`: The device to run the local Whisper model on. Use `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `auto` to let the system automatically choose the best available device. (Default: `auto`)
-  - `compute_type`: The compute type to use for the local Whisper model. [More information on quantization here](https://opennmt.net/CTranslate2/quantization.html). (Default: `default`)
-  - `condition_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
-  - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `false`)
-  - `model_path`: The path to the local Whisper model. If not specified, the default model will be downloaded. (Default: `null`)
+- `active_profiles`: List of active profiles. (Default: `[Default]`)
+- `input_backend`: The input backend for detecting key presses. Options: `auto`, `evdev`, `pynput`. (Default: `auto`)
+- `print_to_terminal`: Print script status and transcribed text to the terminal. (Default: `true`)
+- `show_status_window`: Show the status window during operation. (Default: `true`)
+- `noise_on_completion`: Play a noise after transcription is typed out. (Default: `false`)
+
+### Profile Options
+
+Each profile has the following configurable options:
+
+- `name`: The name of the profile. (Default: `Default`)
+- `activation_key`: Keyboard shortcut to activate this profile. Separate keys with '+'. (Default: `ctrl+shift+space`)
+- `backend_type`: Transcription backend to use. Options: `faster_whisper`, `openai`. (Default: `faster_whisper`)
 
 #### Recording Options
-- `activation_key`: The keyboard shortcut to activate the recording and transcribing process. Separate keys with a `+`. (Default: `ctrl+shift+space`)
-- `input_backend`: The input backend to use for detecting key presses. `auto` will try to use the best available backend. (Default: `auto`)
-- `recording_mode`: The recording mode to use. Options include `continuous` (auto-restart recording after pause in speech until activation key is pressed again), `voice_activity_detection` (stop recording after pause in speech), `press_to_toggle` (stop recording when activation key is pressed again), `hold_to_record` (stop recording when activation key is released). (Default: `continuous`)
-- `sound_device`: The numeric index of the sound device to use for recording. To find device numbers, run `python -m sounddevice`. (Default: `null`)
-- `sample_rate`: The sample rate in Hz to use for recording. (Default: `16000`)
-- `silence_duration`: The duration in milliseconds to wait for silence before stopping the recording. (Default: `900`)
-- `min_duration`: The minimum duration in milliseconds for a recording to be processed. Recordings shorter than this will be discarded. (Default: `100`)
+
+- `sound_device`: Numeric index of the sound device for recording. Run `python -m sounddevice` to find device numbers. (Default: `null`)
+- `sample_rate`: Sample rate in Hz for recording. (Default: `16000`)
+- `recording_mode`: Recording mode to use. Options: `continuous`, `voice_activity_detection`, `press_to_toggle`, `hold_to_record`. (Default: `continuous`)
+- `silence_duration`: Duration in milliseconds to wait for silence before stopping recording. (Default: `900`)
+- `min_duration`: Minimum duration in milliseconds for a recording to be processed. (Default: `100`)
 
 #### Post-processing Options
-- `writing_key_press_delay`: The delay in seconds between each key press when writing the transcribed text. (Default: `0.005`)
-- `remove_trailing_period`: Set to `true` to remove the trailing period from the transcribed text. (Default: `false`)
-- `add_trailing_space`: Set to `true` to add a space to the end of the transcribed text. (Default: `true`)
-- `remove_capitalization`: Set to `true` to convert the transcribed text to lowercase. (Default: `false`)
-- `input_method`: The method to use for simulating keyboard input. (Default: `pynput`)
 
-#### Miscellaneous Options
-- `print_to_terminal`: Set to `true` to print the script status and transcribed text to the terminal. (Default: `true`)
-- `hide_status_window`: Set to `true` to hide the status window during operation. (Default: `false`)
-- `noise_on_completion`: Set to `true` to play a noise after the transcription has been typed out. (Default: `false`)
+- `writing_key_press_delay`: Delay in seconds between each key press when writing transcribed text. (Default: `0.005`)
+- `keyboard_simulator`: Method for simulating keyboard input. Options: `pynput`, `ydotool`, `dotool`. (Default: `pynput`)
+- `enabled_scripts`: List of post-processing scripts to apply (in order). (Default: `[]`)
 
-If any of the configuration options are invalid or not provided, the program will use the default values.
+### Backend-specific Options
+
+#### Faster Whisper
+
+- `model`: Model to use for transcription. Options: `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`, `large-v1`, `large-v2`, `large-v3`. (Default: `base`)
+- `compute_type`: Compute type for the local Whisper model. Options: `default`, `float32`, `float16`, `int8`. (Default: `default`)
+- `device`: Device to run the local Whisper model on. Options: `auto`, `cuda`, `cpu`. (Default: `auto`)
+- `model_path`: Path to the folder containing model files. Leave empty to use online models. (Default: `null`)
+- `vad_filter`: Use voice activity detection (VAD) filter to remove silence. (Default: `false`)
+- `condition_on_previous_text`: Use previously transcribed text as a prompt for the next transcription. (Default: `true`)
+- `temperature`: Controls randomness of transcription output. Lower values make output more focused and deterministic. (Default: `0.0`)
+- `initial_prompt`: String used as an initial prompt to condition the transcription. (Default: `null`)
+
+#### OpenAI
+
+- `model`: Model to use for transcription. Currently only `whisper-1` is available. (Default: `whisper-1`)
+- `base_url`: Base URL for the API. Can be changed to use a local API endpoint. (Default: `https://api.openai.com/v1`)
+- `api_key`: Your API key for the OpenAI API. Required for API usage. (Default: `null`)
+- `temperature`: Controls randomness of transcription output. Lower values make output more focused and deterministic. (Default: `0.0`)
+- `initial_prompt`: String used as an initial prompt to condition the transcription. (Default: `null`)
+
+If any configuration options are invalid or not provided, the program will use the default values.
+
 
 ## Known Issues
 
