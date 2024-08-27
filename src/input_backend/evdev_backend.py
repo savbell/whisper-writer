@@ -72,10 +72,10 @@ class EvdevBackend(InputBackendBase):
     def _start_listening(self):
         """Start the listening thread."""
         import threading
-        self.thread = threading.Thread(target=self._listen_loop)
+        self.thread = threading.Thread(target=self._evdev_thread)
         self.thread.start()
 
-    def _listen_loop(self):
+    def _evdev_thread(self):
         """Main loop for listening to input events."""
         import select
         while not self.stop_event.is_set():

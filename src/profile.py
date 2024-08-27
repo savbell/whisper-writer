@@ -36,21 +36,20 @@ class Profile:
 
     def start_transcription(self, session_id: str):
         ConfigManager.log_print(f"({self.name}) Recording...")
+        self.event_bus.emit("profile_state_change", f"({self.name}) Recording...")
         if self.is_streaming:
             self.state = ProfileState.STREAMING
-            self.event_bus.emit("profile_state_change", f"({self.name}) Streaming...")
             self.transcription_manager.start_streaming(self.name, session_id)
         else:
             self.state = ProfileState.RECORDING
-            self.event_bus.emit("profile_state_change", f"({self.name}) Recording...")
             self.transcription_manager.start_processing(self.name, session_id)
 
     def stop_recording(self):
         if self.state in [ProfileState.RECORDING, ProfileState.STREAMING]:
+            self.event_bus.emit("profile_state_change", f"({self.name}) Transcribing...")
             if self.is_streaming:
                 self.transcription_manager.stop_streaming()
             self.state = ProfileState.TRANSCRIBING
-            self.event_bus.emit("profile_state_change", f"({self.name}) Transcribing...")
 
     def finish_transcription(self):
         self.state = ProfileState.IDLE

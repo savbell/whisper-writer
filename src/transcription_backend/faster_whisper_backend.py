@@ -80,7 +80,7 @@ class FasterWhisperBackend(TranscriptionBackendBase):
             vad_filter=self.config.get('vad_filter', False),
         )
 
-        transcription = ''.join([segment.text for segment in list(segments)]).strip()
+        transcription = ''.join([segment.text for segment in list(segments)])
 
         return {
             'raw_text': transcription,
