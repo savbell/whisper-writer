@@ -67,31 +67,51 @@ class FasterWhisperBackend(TranscriptionBackendBase):
             ConfigManager.log_print("Model not initialized")
             return {'raw_text': '', 'language': language}
 
-        # Check array type and convert if necessary
-        if audio_data.dtype != np.float32:
+        # Ensure audio_data is in the correct format (float32, range [-1, 1])
+        if audio_data.dtype == np.float32 and np.abs(audio_data).max() <= 1.0:
+            # Data is already in the correct format
+            pass
+        elif audio_data.dtype == np.float32:
+            # Data is float32 but may not be in [-1, 1] range
+            audio_data = np.clip(audio_data, -1.0, 1.0)
+        elif audio_data.dtype in [np.int16, np.int32]:
+            # Convert integer PCM to float32
             audio_data = audio_data.astype(np.float32) / np.iinfo(audio_data.dtype).max
+        else:
+            return {'raw_text': '', 'language': 'en',
+                    'error': f"Unsupported audio format: {audio_data.dtype}"}
 
-        segments, info = self.model.transcribe(
-            audio=audio_data,
-            language=language if language != 'auto' else None,
-            initial_prompt=self.config.get('initial_prompt'),
-            condition_on_previous_text=self.config.get('condition_on_previous_text', True),
-            temperature=self.config.get('temperature', 0.0),
-            vad_filter=self.config.get('vad_filter', False),
-        )
+        try:
+            segments, info = self.model.transcribe(
+                audio=audio_data,
+                language=language if language != 'auto' else None,
+                initial_prompt=self.config.get('initial_prompt'),
+                condition_on_previous_text=self.config.get('condition_on_previous_text', True),
+                temperature=self.config.get('temperature', 0.0),
+                vad_filter=self.config.get('vad_filter', False),
+            )
 
-        transcription = ''.join([segment.text for segment in list(segments)])
+            transcription = ''.join([segment.text for segment in list(segments)])
 
-        return {
-            'raw_text': transcription,
-            'language': info.language,
-        }
+            return {
+                'raw_text': transcription,
+                'language': info.language,
+                'error': '',
+            }
+        except Exception as e:
+            return {
+                'raw_text': '',
+                'language': 'en',
+                'error': f'Unexpected error during transcription: {e}'
+            }
 
     def transcribe_stream(self, audio_chunk: np.ndarray, sample_rate: int = 16000,
                           channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
-        # For now, we'll use the same method as transcribe_complete
-        # In a real implementation, you might want to use a streaming-specific method
-        return self.transcribe_complete(audio_chunk, sample_rate, channels, language)
+        return {
+            'raw_text': '',
+            'language': 'en',
+            'error': 'Streaming transcription is not supported with the FasterWhisper backend.',
+        }
 
     def cleanup(self):
         self.model = None

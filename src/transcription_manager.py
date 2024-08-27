@@ -130,7 +130,13 @@ class TranscriptionManager:
                 continue
 
     def _emit_result(self, result: Dict[str, Any], is_final: bool):
-        self.event_bus.emit("raw_transcription_result", result, is_final, self.current_session_id)
+        if result['error']:
+            ConfigManager.log_print(f"Transcription error: {result['error']}")
+            self.event_bus.emit("transcription_error", result['error'])
+            self.event_bus.emit("raw_transcription_result", result, True, self.current_session_id)
+        else:
+            self.event_bus.emit("raw_transcription_result",
+                                result, is_final, self.current_session_id)
 
     def cleanup(self):
         self.stop()

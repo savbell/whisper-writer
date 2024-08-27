@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
@@ -36,6 +36,7 @@ class UIManager:
         self.tray_icon.close_app.connect(self.initiate_close)
         self.event_bus.subscribe("quit_application", self.quit_application)
         self.event_bus.subscribe("profile_state_change", self.handle_profile_state_change)
+        self.event_bus.subscribe("transcription_error", self.show_error_message)
 
     def show_main_window(self):
         """Display the main application window and show the system tray icon."""
@@ -53,6 +54,10 @@ class UIManager:
     def show_status(self, message):
         """Display a status message in the status window."""
         self.status_window.show_message(message)
+
+    def show_error_message(self, message):
+        """Display an error message in a QMessageBox."""
+        QMessageBox.critical(None, "Transcription Error", message)
 
     def hide_status(self):
         """Hide the status window."""
