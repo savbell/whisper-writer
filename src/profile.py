@@ -85,7 +85,7 @@ class Profile:
         return self.state == ProfileState.RECORDING and self.recording_mode in [
             RecordingMode.PRESS_TO_TOGGLE,
             RecordingMode.CONTINUOUS,
-            RecordingMode.VAD
+            RecordingMode.VOICE_ACTIVITY_DETECTION
         ]
 
     def should_stop_on_release(self) -> bool:
