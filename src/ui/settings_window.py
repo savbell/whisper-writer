@@ -63,53 +63,52 @@ class SettingsWindow(QWidget):
 
         profile_config = ConfigManager.get_section('profiles', profile_name)
 
-        # Add backend_type widget
-        backend_type_key = f'profiles.{profile_name}.backend_type'
-        backend_type_widget = self.create_setting_widget(backend_type_key,
-                                                         profile_config['backend_type'])
-        if isinstance(backend_type_widget.input_widget, QComboBox):
-            backend_type_widget.input_widget.currentTextChanged.connect(
-                lambda value, pn=profile_name: self.update_backend_options(pn, value)
-            )
-        tab_layout.addWidget(backend_type_widget)
-
-        # Add activation_key widget
-        activation_key = f'profiles.{profile_name}.activation_key'
-        activation_key_widget = self.create_setting_widget(activation_key,
-                                                           profile_config['activation_key'])
-        tab_layout.addWidget(activation_key_widget)
-
-        # Create group boxes for other sections
-        for section_name, section in profile_config.items():
-            if section_name not in ['backend_type', 'name', 'activation_key']:
-                group_box = QGroupBox(section_name.replace('_', ' ').capitalize())
-                group_box.setObjectName(f"{profile_name}_{section_name}")  # Set a unique obj name
-                group_layout = QVBoxLayout()
-                if isinstance(section, dict):
-                    self.create_section_widgets(group_layout,
-                                                section,
-                                                f'profiles.{profile_name}.{section_name}')
-                else:
-                    widget = self.create_setting_widget(f'profiles.{profile_name}.{section_name}',
-                                                        section)
-                    group_layout.addWidget(widget)
-                group_box.setLayout(group_layout)
-                tab_layout.addWidget(group_box)
-
-        # Add delete profile button
-        delete_button = QPushButton(f"Delete {profile_name}")
-        delete_button.clicked.connect(lambda: self.delete_profile(profile_name))
-        tab_layout.addWidget(delete_button)
-
-        # Add rename button
-        rename_button = QPushButton("Rename Profile")
-        rename_button.clicked.connect(lambda: self.rename_profile(profile_name))
-        tab_layout.addWidget(rename_button)
+        self.add_profile_sections(tab_layout, profile_name, profile_config)
+        self.add_profile_management_buttons(tab_layout, profile_name)
 
         tab_widget.setLayout(tab_layout)
         tab.setWidget(tab_widget)
         tab.setWidgetResizable(True)
         return tab
+
+    def add_profile_sections(self, layout, profile_name, profile_config):
+        # Define the order of sections
+        section_order = ['activation_key', 'backend_type', 'backend', 'recording_options',
+                         'post_processing']
+
+        # Add sections in the specified order, then any remaining sections
+        for section_name in section_order + list(set(profile_config.keys()) - set(section_order)):
+            if section_name in profile_config and section_name != 'name':
+                self.add_section(layout, profile_name, profile_config, section_name)
+
+    def add_section(self, layout, profile_name, profile_config, section_name):
+        section = profile_config[section_name]
+        if isinstance(section, dict):
+            group_box = QGroupBox(section_name.replace('_', ' ').capitalize())
+            group_box.setObjectName(f"{profile_name}_{section_name}")
+            group_layout = QVBoxLayout()
+            self.create_section_widgets(group_layout, section,
+                                        f'profiles.{profile_name}.{section_name}')
+            group_box.setLayout(group_layout)
+            layout.addWidget(group_box)
+        else:
+            widget = self.create_setting_widget(f'profiles.{profile_name}.{section_name}', section)
+            layout.addWidget(widget)
+
+        # Add backend type change listener
+        if section_name == 'backend_type' and isinstance(widget.input_widget, QComboBox):
+            widget.input_widget.currentTextChanged.connect(
+                lambda value, pn=profile_name: self.update_backend_options(pn, value)
+            )
+
+    def add_profile_management_buttons(self, layout, profile_name):
+        delete_button = QPushButton(f"Delete {profile_name}")
+        delete_button.clicked.connect(lambda: self.delete_profile(profile_name))
+        layout.addWidget(delete_button)
+
+        rename_button = QPushButton("Rename Profile")
+        rename_button.clicked.connect(lambda: self.rename_profile(profile_name))
+        layout.addWidget(rename_button)
 
     def rename_profile(self, old_name):
         new_name, ok = QInputDialog.getText(self, 'Rename Profile', 'Enter new profile name:')
@@ -178,24 +177,52 @@ class SettingsWindow(QWidget):
                 layout.addWidget(widget)
             return
 
-        for key, value in section.items():
-            if isinstance(value, dict):
-                # This is a nested section, create a group box
-                group_box = QGroupBox(key.replace('_', ' ').capitalize())
-                group_layout = QVBoxLayout()
-                # Pass the nested section path to the next level
-                self.create_section_widgets(group_layout, value, f'{section_path}.{key}')
-                group_box.setLayout(group_layout)
-                layout.addWidget(group_box)
-            else:
-                # This is a setting, create a widget for it
-                # Pass the full setting path to the widget
-                widget = self.create_setting_widget(f'{section_path}.{key}', value)
-                if widget:
-                    layout.addWidget(widget)
+        # Define the order of elements within sections
+        element_order = {
+            'global_options': [
+                'active_profiles', 'input_backend', 'print_to_terminal',
+                'show_status_window', 'noise_on_completion'
+            ],
+            'recording_options': [
+                'sound_device', 'sample_rate', 'recording_mode',
+                'silence_duration', 'min_duration'
+            ],
+            'post_processing': [
+                'writing_key_press_delay', 'keyboard_simulator', 'enabled_scripts'
+            ],
+            'backend': [
+                'model', 'compute_type', 'device', 'model_path', 'vad_filter',
+                'condition_on_previous_text', 'base_url', 'api_key', 'temperature',
+                'initial_prompt', 'capabilities'
+            ]
+        }
+
+        # Get the section name from the section_path
+        section_name = section_path.split('.')[-1]
+
+        # Use the predefined order if available, otherwise use all keys
+        ordered_keys = element_order.get(section_name, list(section.keys()))
+
+        # Add elements in the specified order, then any remaining elements
+        for key in ordered_keys + list(set(section.keys()) - set(ordered_keys)):
+            if key in section:
+                value = section[key]
+                if isinstance(value, dict):
+                    # This is a nested section, create a group box
+                    group_box = QGroupBox(key.replace('_', ' ').capitalize())
+                    group_layout = QVBoxLayout()
+                    # Pass the nested section path to the next level
+                    self.create_section_widgets(group_layout, value, f'{section_path}.{key}')
+                    group_box.setLayout(group_layout)
+                    layout.addWidget(group_box)
+                else:
+                    # This is a setting, create a widget for it
+                    # Pass the full setting path to the widget
+                    widget = self.create_setting_widget(f'{section_path}.{key}', value)
+                    if widget:
+                        layout.addWidget(widget)
 
     def create_setting_widget(self, config_key, value):
-        # No need to extract the actual key; use the full path provided
         widget = SettingWidget(config_key, value)
         return widget
 
@@ -322,6 +349,10 @@ class SettingWidget(QWidget):
 
     def create_input_widget(self):
         widget_type = self.schema.get('type')
+
+        if 'capabilities' in self.config_key:
+            return self.create_read_only_checkbox()
+
         if widget_type == 'bool':
             return self.create_checkbox()
         elif widget_type == 'str' and 'options' in self.schema:
@@ -408,6 +439,13 @@ class SettingWidget(QWidget):
         browse_button.clicked.connect(browse_directory)
         line_edit.editingFinished.connect(lambda: self.update_config(line_edit.text()))
 
+        return widget
+
+    def create_read_only_checkbox(self):
+        widget = QCheckBox()
+        widget.setChecked(bool(self.value))
+        widget.setAttribute(Qt.WA_TransparentForMouseEvents)
+        widget.setFocusPolicy(Qt.NoFocus)
         return widget
 
     def update_config(self, value=None):
