@@ -8,45 +8,79 @@ from config_manager import ConfigManager
 
 
 class OpenAIBackend(TranscriptionBackendBase):
-    def initialize(self):
+    def __init__(self):
+        self.OpenAI = None
+        self.config = None
+        self.client = None
+
+    def initialize(self, options: Dict[str, Any]):
         try:
             from openai import OpenAI
+            import soundfile as sf
         except ImportError:
-            raise RuntimeError("Failed to import OpenAI. Make sure it's installed.")
+            ConfigManager.log_print("Failed to import OpenAI or soundfile. Make sure they're installed.")
+            return
 
         self.OpenAI = OpenAI
-        self.config = ConfigManager.get_config_section('model_options.backends.openai')
-        self.client = self.OpenAI(
-            api_key=self.config.get('api_key') or os.getenv('OPENAI_API_KEY'),
-            base_url=self.config.get('base_url') or 'https://api.openai.com/v1'
-        )
+        self.config = options
+        api_key = self.config.get('api_key') or os.getenv('OPENAI_API_KEY')
+        base_url = self.config.get('base_url') or 'https://api.openai.com/v1'
 
-    def transcribe(self, audio_data: np.ndarray, sample_rate: int = 16000, channels: int = 1,
-                   language: str = 'auto') -> Dict[str, Any]:
+        if not api_key:
+            ConfigManager.log_print(f"OpenAI API key not found. Please set it in the configuration or as an environment variable.")
+            return
+
+        self.client = self.OpenAI(api_key=api_key, base_url=base_url)
+        ConfigManager.log_print("OpenAI client initialized successfully.")
+
+    def transcribe_complete(self, audio_data: np.ndarray, sample_rate: int = 16000,
+                            channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
         if not self.client:
-            raise RuntimeError("OpenAI client not initialized")
+            return {'raw_text': '', 'language': language, 'error': "OpenAI client not initialized"}
 
-        # Check and convert audio data if needed
-        audio_data = self._prepare_audio_data(audio_data, sample_rate, channels)
+        try:
+            import soundfile as sf
+        except ImportError:
+            return {'raw_text': '', 'language': language, 'error': "soundfile library not found"}
 
-        # Convert numpy array to bytes
-        byte_io = io.BytesIO(audio_data.tobytes())
+        # Prepare audio data
+        try:
+            audio_data = self._prepare_audio_data(audio_data, sample_rate, channels)
+        except Exception as e:
+            return {'raw_text': '', 'language': language, 'error': f"Error preparing audio data: {str(e)}"}
+
+        # Convert numpy array to WAV file
+        byte_io = io.BytesIO()
+        sf.write(byte_io, audio_data, 16000, format='wav')
+        byte_io.seek(0)
 
         try:
             response = self.client.audio.transcriptions.create(
-                model=self.config.get('model'),
-                file=("audio.wav", byte_io, "audio/wav"),
+                model=self.config.get('model', 'whisper-1'),
+                file=('audio.wav', byte_io, 'audio/wav'),
                 language=language if language != 'auto' else None,
                 prompt=self.config.get('initial_prompt'),
                 temperature=self.config.get('temperature', 0.0),
             )
             return {
                 'raw_text': response.text,
-                'language': language,  # OpenAI doesn't return detected language,
-                                       # so we use the input language
+                'language': language,  # OpenAI doesn't return detected language
+                'error': '',
             }
         except Exception as e:
-            raise RuntimeError(f"OpenAI transcription failed: {str(e)}")
+            return {
+                'raw_text': '',
+                'language': language,
+                'error': f"OpenAI transcription failed: {str(e)}",
+            }
+
+    def transcribe_stream(self, audio_chunk: np.ndarray, sample_rate: int = 16000,
+                          channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
+        return {
+            'raw_text': '',
+            'language': language,
+            'error': 'Streaming transcription is not supported with the OpenAI backend.',
+        }
 
     def _prepare_audio_data(self, audio_data: np.ndarray, sample_rate: int,
                             channels: int) -> np.ndarray:
@@ -68,13 +102,7 @@ class OpenAIBackend(TranscriptionBackendBase):
             audio_data = np.clip(audio_data, -1.0, 1.0)
 
         return audio_data
-    #
-    # def start_streaming(self, audio_source: Any, callback: Callable[[Dict[str, Any]], None],
-    #                     sample_rate: int = 16000, channels: int = 1, language: str = 'auto'):
-    #     raise NotImplementedError("Streaming is not currently supported for OpenAI backend")
-    #
-    # def stop_streaming(self):
-    #     raise NotImplementedError("Streaming is not currently supported for OpenAI backend")
 
     def cleanup(self):
         self.client = None
+        ConfigManager.log_print("OpenAI client cleaned up.")
