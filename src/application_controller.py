@@ -10,7 +10,16 @@ from config_manager import ConfigManager
 
 
 class ApplicationController:
+    """
+    The ApplicationController class serves as the central coordinator for the entire application,
+    managing the lifecycle of core components and orchestrating the flow of data between them.
+    It handles the initialization and management of profiles, coordinates audio recording and
+    transcription processes, and manages the application's state transitions. The class also acts
+    as a bridge between user inputs (via shortcuts) and the corresponding actions, while handling
+    configuration changes and ensuring proper cleanup of resources.
+    """
     def __init__(self, ui_manager, event_bus):
+        """Initialize the ApplicationController with UI manager and event bus."""
         self.ui_manager = ui_manager
         self.event_bus = event_bus
         self.audio_queue = Queue()
@@ -25,6 +34,7 @@ class ApplicationController:
         self.setup_connections()
 
     def load_active_profiles(self):
+        """Load and initialize active profiles from configuration."""
         active_profiles = ConfigManager.get_profiles(active_only=True)
         for profile in active_profiles:
             profile_name = profile['name']
@@ -32,6 +42,7 @@ class ApplicationController:
             self.active_profiles[profile_name] = profile_obj
 
     def setup_connections(self):
+        """Set up event subscriptions for various application events."""
         self.event_bus.subscribe("start_listening", self.handle_start_listening)
         self.event_bus.subscribe("shortcut_triggered", self.handle_shortcut)
         self.event_bus.subscribe("transcription_result", self.handle_transcription_result)
@@ -40,6 +51,7 @@ class ApplicationController:
         self.event_bus.subscribe("audio_discarded", self.handle_audio_discarded)
 
     def handle_shortcut(self, profile_name: str, event_type: str):
+        """Handle shortcut events for starting or stopping recording."""
         profile = self.active_profiles.get(profile_name)
         if profile:
             if event_type == "press":
@@ -52,6 +64,7 @@ class ApplicationController:
                     self.stop_recording(profile)
 
     def start_recording(self, profile: Profile):
+        """Start recording for a given profile."""
         if profile.state == ProfileState.IDLE:
             session_id = str(uuid.uuid4())
             self.session_profile_map[session_id] = profile.name
@@ -59,11 +72,13 @@ class ApplicationController:
             profile.start_transcription(session_id)
 
     def stop_recording(self, profile: Profile):
+        """Stop recording for a given profile."""
         if profile.state in [ProfileState.RECORDING, ProfileState.STREAMING]:
             self.audio_manager.stop_recording()
             profile.stop_recording()
 
     def finish_transcription(self, session_id: str):
+        """Finish transcription for a given session."""
         if session_id in self.session_profile_map:
             profile_name = self.session_profile_map[session_id]
             del self.session_profile_map[session_id]
@@ -71,6 +86,7 @@ class ApplicationController:
             profile.finish_transcription()
 
     def handle_transcription_result(self, result: Dict, is_final: bool, session_id: str):
+        """Process transcription results and manage continuous recording if needed."""
         if session_id in self.session_profile_map:
             profile_name = self.session_profile_map[session_id]
             profile = self.active_profiles[profile_name]
@@ -88,6 +104,7 @@ class ApplicationController:
                 pass
 
     def handle_audio_discarded(self, session_id: str):
+        """Handle cases where recorded audio is discarded."""
         if session_id in self.session_profile_map:
             profile_name = self.session_profile_map[session_id]
             profile = self.active_profiles[profile_name]
@@ -98,23 +115,27 @@ class ApplicationController:
                 self.start_recording(profile)
 
     def handle_start_listening(self):
+        """Initialize core components when the application starts listening."""
         self.listening = True
         self.start_core_components()
         self.event_bus.emit("core_components_started")
 
     def handle_config_change(self):
+        """Handle configuration changes by reloading profiles and restarting components."""
         self.cleanup()
         self.load_active_profiles()
         if self.listening:
             self.start_core_components()
 
     def run(self):
+        """Run the main application loop and return the exit code."""
         self.ui_manager.show_main_window()
         exit_code = self.ui_manager.run_event_loop()  # Run QT event loop
         self.cleanup()
         return exit_code
 
     def start_core_components(self):
+        """Initialize and start core components like InputManager and AudioManager."""
         self.ui_manager.show_status_window = ConfigManager.get_value(
             'global_options.show_status_window')
         self.input_manager = InputManager(self.event_bus)
@@ -125,9 +146,11 @@ class ApplicationController:
             profile.transcription_manager.start()
 
     def close_application(self):
+        """Initiate the application closing process."""
         self.event_bus.emit("quit_application")
 
     def cleanup(self):
+        """Clean up resources and stop all components before application exit."""
         # Stop and cleanup audio-related components
         if self.audio_manager:
             self.audio_manager.stop_recording()

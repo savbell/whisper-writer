@@ -5,9 +5,7 @@ from enums import KeyCode, InputEvent
 
 
 class EvdevBackend(InputBackendBase):
-    """
-    Backend for handling input events using the evdev library.
-    """
+    """Backend for handling input events using the evdev library."""
     @classmethod
     def is_available(cls) -> bool:
         """Check if the evdev library is available."""
@@ -87,7 +85,7 @@ class EvdevBackend(InputBackendBase):
             except Exception as e:
                 if self.stop_event.is_set():
                     break
-                print(f"Unexpected error in _listen_loop: {e}")
+                print(f"Unexpected error in _evdev_thread: {e}")
 
     def _read_device_events(self, device):
         """Read and process events from a single device."""
