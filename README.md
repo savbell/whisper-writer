@@ -6,21 +6,42 @@
     <img src="./assets/ww-demo-image-02.gif" alt="WhisperWriter demo gif" width="340" height="136">
 </p>
 
-**Update (2024-05-28):** I've just merged in a major rewrite of WhisperWriter! We've migrated from using `tkinter` to using `PyQt5` for the UI, added a new settings window for configuration, a new continuous recording mode, support for a local API, and more! Please be patient as I work out any bugs that may have been introduced in the process. If you encounter any problems, please [open a new issue](https://github.com/savbell/whisper-writer/issues)!
+WhisperWriter is a versatile speech-to-text application that leverages multiple transcription backends, including [OpenAI's Whisper model](https://openai.com/research/whisper) and [Faster Whisper](https://github.com/SYSTRAN/faster-whisper/), to automatically transcribe audio from your microphone to the active window or other configurable outputs.
 
-WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone to the active window.
+### Key Features
 
-Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+shift+space` by default). When the shortcut is pressed, the app starts recording from your microphone. There are four recording modes to choose from:
-- `continuous` (default): Recording will stop after a long enough pause in your speech. The app will transcribe the text and then start recording again. To stop listening, press the keyboard shortcut again.
-- `voice_activity_detection`: Recording will stop after a long enough pause in your speech. Recording will not start until the keyboard shortcut is pressed again.
-- `press_to_toggle` Recording will stop when the keyboard shortcut is pressed again. Recording will not start until the keyboard shortcut is pressed again.
-- `hold_to_record` Recording will continue until the keyboard shortcut is released. Recording will not start until the keyboard shortcut is held down again.
+- **Multiple Profiles**: Configure and switch between different transcription setups on-the-fly.
+- **Flexible Backends**: Support for local (Faster Whisper) and API-based (OpenAI) transcription.
+- **Customizable Shortcuts**: Each profile can have its own activation shortcut.
+- **Various Recording Modes**: Choose from continuous, voice activity detection, press-to-toggle, or hold-to-record modes.
+- **Post-Processing**: Apply customizable post-processing scripts to refine transcription output.
+- **Multiple Output Methods**: Write to active window, clipboard, or custom output handlers.
+- **Streaming Support**: Some backends support real-time transcription for immediate feedback.
 
-You can change the keyboard shortcut (`activation_key`) and recording mode in the [Configuration Options](#configuration-options). While recording and transcribing, a small status window is displayed that shows the current stage of the process (but this can be turned off). Once the transcription is complete, the transcribed text will be automatically written to the active window.
+### How It Works
 
-The transcription can either be done locally through the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use a local model, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to either provide your OpenAI API key or change the base URL endpoint.
+WhisperWriter runs in the background, waiting for configured keyboard shortcuts. When a shortcut is pressed, the corresponding profile is activated, initiating the following process:
 
-**Fun fact:** Almost the entirety of the initial release of the project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
+1. **Recording**: Audio is captured from the specified input device.
+2. **Transcription**: The audio is processed by the configured backend (Faster Whisper or OpenAI).
+3. **Post-Processing**: The transcribed text undergoes any specified post-processing steps.
+4. **Output**: The final text is sent to the configured output method (e.g., typed into the active window).
+
+A status window can optionally display the current stage of the process.
+
+For more detailed information about the application's architecture and components, please refer to the [Design Document](DESIGN.md).
+
+### Recording Modes
+
+- **Continuous**: Records and transcribes continuously until the shortcut is pressed again.
+- **Voice Activity Detection**: Stops recording after a pause in speech.
+- **Press-to-Toggle**: Starts/stops recording with each shortcut press.
+- **Hold-to-Record**: Records only while the shortcut is held down.
+
+Refer to the [Configuration Options](#configuration-options) section for detailed settings.
+
+WhisperWriter's modular design allows for easy extension with new backends, input methods, and output handlers to suit a wide range of use cases.
+
 
 ## Getting Started
 
@@ -173,16 +194,13 @@ You can see all reported issues and their current status in our [Issue Tracker](
 
 ## Roadmap
 Below are features I am planning to add in the near future:
-- [x] Restructuring configuration options to reduce redundancy
-- [x] Update to use the latest version of the OpenAI API
+- [ ] Add VOSK backend
+- [ ] Add streaming transcription
+- [ ] Upgrade to QT6.
 - [ ] Additional post-processing options:
   - [ ] Simple word replacement (e.g. "gonna" -> "going to" or "smiley face" -> "😊")
   - [ ] Using GPT for instructional post-processing
-- [x] Updating GUI
 - [ ] Creating standalone executable file
-
-Below are features not currently planned:
-- [ ] Pipelining audio files
 
 Implemented features can be found in the [CHANGELOG](CHANGELOG.md).
 
