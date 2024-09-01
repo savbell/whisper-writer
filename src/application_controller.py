@@ -1,4 +1,5 @@
 import uuid
+import os
 from queue import Queue
 from typing import Dict, Optional
 
@@ -7,6 +8,7 @@ from input_manager import InputManager
 from enums import RecordingMode, ProfileState
 from profile import Profile
 from config_manager import ConfigManager
+from play_wav import play_wav
 
 
 class ApplicationController:
@@ -101,6 +103,10 @@ class ApplicationController:
         profile = self._get_profile_for_session(session_id)
         if profile:
             del self.session_profile_map[session_id]
+            # Play beep sound
+            if ConfigManager.get_value('global_options.noise_on_completion', False):
+                beep_file = os.path.join('assets', 'beep.wav')
+                play_wav(beep_file)
 
             if (profile.recording_mode == RecordingMode.CONTINUOUS and
                     profile.name not in self.manually_stopped_profiles):
