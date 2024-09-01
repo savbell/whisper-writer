@@ -1,6 +1,6 @@
 import uuid
 from queue import Queue
-from typing import Dict
+from typing import Dict, Optional
 
 from audio_manager import AudioManager
 from input_manager import InputManager
@@ -11,12 +11,14 @@ from config_manager import ConfigManager
 
 class ApplicationController:
     """
-    The ApplicationController class serves as the central coordinator for the entire application,
-    managing the lifecycle of core components and orchestrating the flow of data between them.
-    It handles the initialization and management of profiles, coordinates audio recording and
-    transcription processes, and manages the application's state transitions. The class also acts
-    as a bridge between user inputs (via shortcuts) and the corresponding actions, while handling
-    configuration changes and ensuring proper cleanup of resources.
+    Central coordinator for the application, managing core components and orchestrating
+    the overall workflow.
+
+    Responsible for initializing and managing profiles, coordinating audio recording and
+    transcription processes, handling user input events, and managing application state
+    transitions. Acts as a bridge between various components, handles session management,
+    and ensures proper cleanup of resources. Manages the lifecycle of recording sessions
+    across different profiles and modes of operation.
     """
     def __init__(self, ui_manager, event_bus):
         """Initialize the ApplicationController with UI manager and event bus."""
@@ -26,6 +28,7 @@ class ApplicationController:
         self.listening = False
         self.audio_manager = None
         self.input_manager = None
+        self.manually_stopped_profiles = set()  # For tracking continuous mode profiles
 
         self.active_profiles: Dict[str, Profile] = {}
         self.session_profile_map: Dict[str, str] = {}
@@ -45,10 +48,11 @@ class ApplicationController:
         """Set up event subscriptions for various application events."""
         self.event_bus.subscribe("start_listening", self.handle_start_listening)
         self.event_bus.subscribe("shortcut_triggered", self.handle_shortcut)
-        self.event_bus.subscribe("transcription_result", self.handle_transcription_result)
+        self.event_bus.subscribe("audio_discarded", self.handle_audio_discarded)
+        self.event_bus.subscribe("recording_stopped", self.handle_recording_stopped)
+        self.event_bus.subscribe("transcription_complete", self.handle_transcription_complete)
         self.event_bus.subscribe("config_changed", self.handle_config_change)
         self.event_bus.subscribe("close_app", self.close_application)
-        self.event_bus.subscribe("audio_discarded", self.handle_audio_discarded)
 
     def handle_shortcut(self, profile_name: str, event_type: str):
         """Handle shortcut events for starting or stopping recording."""
@@ -59,6 +63,8 @@ class ApplicationController:
                     self.start_recording(profile)
                 elif profile.should_stop_on_press():
                     self.stop_recording(profile)
+                    if profile.recording_mode == RecordingMode.CONTINUOUS:
+                        self.manually_stopped_profiles.add(profile.name)
             elif event_type == "release":
                 if profile.should_stop_on_release():
                     self.stop_recording(profile)
@@ -70,6 +76,7 @@ class ApplicationController:
             self.session_profile_map[session_id] = profile.name
             self.audio_manager.start_recording(profile, session_id)
             profile.start_transcription(session_id)
+            self.manually_stopped_profiles.discard(profile.name)
 
     def stop_recording(self, profile: Profile):
         """Stop recording for a given profile."""
@@ -77,42 +84,29 @@ class ApplicationController:
             self.audio_manager.stop_recording()
             profile.stop_recording()
 
-    def finish_transcription(self, session_id: str):
-        """Finish transcription for a given session."""
-        if session_id in self.session_profile_map:
-            profile_name = self.session_profile_map[session_id]
-            del self.session_profile_map[session_id]
-            profile = self.active_profiles[profile_name]
-            profile.finish_transcription()
-
-    def handle_transcription_result(self, result: Dict, is_final: bool, session_id: str):
-        """Process transcription results and manage continuous recording if needed."""
-        if session_id in self.session_profile_map:
-            profile_name = self.session_profile_map[session_id]
-            profile = self.active_profiles[profile_name]
-            profile.output(result['processed'])
-
-            if is_final:
-                if (profile.recording_mode == RecordingMode.CONTINUOUS and
-                        profile.state != ProfileState.TRANSCRIBING):
-                    self.finish_transcription(session_id)
-                    self.start_recording(profile)
-                elif not profile.is_streaming:
-                    self.finish_transcription(session_id)
-            elif profile.is_streaming:
-                # Handle partial results for streaming mode if needed
-                pass
+    def handle_recording_stopped(self, session_id: str):
+        """Handle cases when audio stopped automatically in VAD and CONTINUOUS modes"""
+        profile = self._get_profile_for_session(session_id)
+        if profile:
+            self.stop_recording(profile)
 
     def handle_audio_discarded(self, session_id: str):
         """Handle cases where recorded audio is discarded."""
-        if session_id in self.session_profile_map:
-            profile_name = self.session_profile_map[session_id]
-            profile = self.active_profiles[profile_name]
-            self.finish_transcription(session_id)
+        profile = self._get_profile_for_session(session_id)
+        if profile:
+            profile.finish_transcription()  # This will emit "transcription_complete" event
 
-            if profile.recording_mode == RecordingMode.CONTINUOUS:
-                # Restart recording for continuous mode
+    def handle_transcription_complete(self, session_id: str):
+        """Handle the completion of a transcription session."""
+        profile = self._get_profile_for_session(session_id)
+        if profile:
+            del self.session_profile_map[session_id]
+
+            if (profile.recording_mode == RecordingMode.CONTINUOUS and
+                    profile.name not in self.manually_stopped_profiles):
                 self.start_recording(profile)
+            else:
+                self.manually_stopped_profiles.discard(profile.name)
 
     def handle_start_listening(self):
         """Initialize core components when the application starts listening."""
@@ -157,6 +151,10 @@ class ApplicationController:
             self.audio_manager.cleanup()
             self.audio_manager = None
 
+        # Ensure all active sessions are properly closed
+        for session_id in list(self.session_profile_map.keys()):
+            self.handle_transcription_complete(session_id)
+
         # Stop and cleanup all active profiles
         for profile in self.active_profiles.values():
             profile.cleanup()
@@ -169,3 +167,10 @@ class ApplicationController:
         if self.input_manager:
             self.input_manager.cleanup()
             self.input_manager = None
+
+    def _get_profile_for_session(self, session_id: str) -> Optional[Profile]:
+        """Get the profile associated with a given session ID."""
+        if session_id in self.session_profile_map:
+            profile_name = self.session_profile_map[session_id]
+            return self.active_profiles.get(profile_name)
+        return None

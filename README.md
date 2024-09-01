@@ -6,24 +6,24 @@
     <img src="./assets/ww-demo-image-02.gif" alt="WhisperWriter demo gif" width="340" height="136">
 </p>
 
-WhisperWriter is a versatile speech-to-text application that leverages multiple transcription backends, including [OpenAI's Whisper model](https://openai.com/research/whisper) and [Faster Whisper](https://github.com/SYSTRAN/faster-whisper/), to automatically transcribe audio from your microphone to the active window or other configurable outputs.
+WhisperWriter is a versatile speech-to-text application that leverages multiple transcription backends, including [OpenAI's Whisper model](https://openai.com/research/whisper), [Faster Whisper](https://github.com/SYSTRAN/faster-whisper/), and [VOSK](https://alphacephei.com/vosk/) to automatically transcribe audio from your microphone to the active window or other configurable outputs.
 
 ### Key Features
 
 - **Multiple Profiles**: Configure and switch between different transcription setups on-the-fly.
-- **Flexible Backends**: Support for local (Faster Whisper) and API-based (OpenAI) transcription.
+- **Flexible Backends**: Support for local (Faster Whisper, VOSK) and API-based (OpenAI) transcription.
 - **Customizable Shortcuts**: Each profile can have its own activation shortcut.
 - **Various Recording Modes**: Choose from continuous, voice activity detection, press-to-toggle, or hold-to-record modes.
 - **Post-Processing**: Apply customizable post-processing scripts to refine transcription output.
-- **Multiple Output Methods**: Write to active window, clipboard, or custom output handlers.
-- **Streaming Support**: Some backends support real-time transcription for immediate feedback.
+- **Multiple Output Methods**: Write to active window or implement new output handlers.
+- **Streaming Support**: VOSK backend supports real-time transcription for immediate feedback.
 
 ### How It Works
 
 WhisperWriter runs in the background, waiting for configured keyboard shortcuts. When a shortcut is pressed, the corresponding profile is activated, initiating the following process:
 
 1. **Recording**: Audio is captured from the specified input device.
-2. **Transcription**: The audio is processed by the configured backend (Faster Whisper or OpenAI).
+2. **Transcription**: The audio is processed by the configured backend.
 3. **Post-Processing**: The transcribed text undergoes any specified post-processing steps.
 4. **Output**: The final text is sent to the configured output method (e.g., typed into the active window).
 
@@ -185,18 +185,51 @@ Each profile has the following configurable options:
 - `temperature`: Controls randomness of transcription output. Lower values make output more focused and deterministic. (Default: `0.0`)
 - `initial_prompt`: String used as an initial prompt to condition the transcription. (Default: `null`)
 
-If any configuration options are invalid or not provided, the program will use the default values.
+#### VOSK
 
+- `model_path`: Path to the folder containing the Vosk model files. Default is 'model' in the current directory.
+- `sample_rate`: Sample rate of the audio input. Vosk models are typically trained on 16kHz audio.
+- `use_streaming`: If true, use streaming mode with partial results. If false, wait for complete audio before transcribing.
 
 ## Known Issues
+
+### 1. Shortcut Interference with Output
+
+**Issue:** Shortcuts can interfere with the application's output, potentially causing unintended effects in the target application.
+
+**Examples:**
+- Holding "Shift" during output results in capitalized text.
+- Holding "Ctrl" while the app types "v" may trigger a paste command in the target application.
+
+**Workarounds:**
+a) Use Continuous or Voice Activity Detection (VAD) modes to minimize shortcut holding during typing.
+b) Choose shortcuts carefully, especially for "Press to Toggle" or "Hold to Record" modes.
+c) Test shortcuts by holding them down while typing to check for conflicts.
+d) Consider using mouse buttons (e.g., mouse_forward, mouse_backward) for "Hold to Record" mode.
+
+**Technical Explanation:** Current typing simulation methods create virtual keyboards, which are indistinguishable from physical keyboards at the display server level. This makes it impossible for user applications to differentiate between virtual and physical keyboard inputs.
+
+**Potential Future Solution:** Developing an Input Method module for ibus or fcitx could overcome this limitation, as these frameworks operate above the display server level.
+
+### 2. Status Window Focus Issues on Wayland
+
+**Issue:** The status window grabs focus and interferes with output when using the Wayland display server.
+
+**Workaround:** Consider disabling the status window by turning off the "Show status window" option in the settings.
+
+### General Recommendations
+
+1. Carefully select and test shortcuts to minimize conflicts with your typical workflow and applications.
+2. Be aware of the limitations when using "Press to Toggle" or "Hold to Record" modes, especially with streaming transcription.
+3. On Wayland systems, consider operating without the status window for smoother performance.
 
 You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
 ## Roadmap
 Below are features I am planning to add in the near future:
-- [ ] Add VOSK backend
-- [ ] Add streaming transcription
-- [ ] Upgrade to QT6.
+- [ ] Add streaming transcription for Whisper backend
+- [ ] Upgrade to Qt6.
+- [ ] Create an IME module for output
 - [ ] Additional post-processing options:
   - [ ] Simple word replacement (e.g. "gonna" -> "going to" or "smiley face" -> "😊")
   - [ ] Using GPT for instructional post-processing

@@ -1,6 +1,7 @@
 import os
 import importlib.util
-from typing import List
+import copy
+from typing import List, Dict
 
 from post_processing_base import PostProcessor
 
@@ -30,7 +31,8 @@ class PostProcessingManager:
             else:
                 print(f"Warning: Script {script_name} not found")
 
-    def process(self, text: str) -> str:
+    def process(self, transcription: Dict) -> Dict:
+        result = copy.deepcopy(transcription)
         for processor in self.processors:
-            text = processor.process(text)
-        return text
+            result = processor.process(result)
+        return result

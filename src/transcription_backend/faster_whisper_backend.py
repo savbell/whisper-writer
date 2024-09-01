@@ -10,6 +10,10 @@ class FasterWhisperBackend(TranscriptionBackendBase):
         self.WhisperModel = None
         self.config = None
         self.model = None
+        self._initialized = False
+
+    def is_initialized(self) -> bool:
+        return self._initialized
 
     def initialize(self, options: Dict[str, Any]):
         try:
@@ -21,6 +25,8 @@ class FasterWhisperBackend(TranscriptionBackendBase):
 
         self.config = options
         self._load_model()
+        if self.model:
+            self._initialized = True
 
     def _load_model(self):
         ConfigManager.log_print('Creating Faster Whisper model...')
@@ -105,13 +111,6 @@ class FasterWhisperBackend(TranscriptionBackendBase):
                 'error': f'Unexpected error during transcription: {e}'
             }
 
-    def transcribe_stream(self, audio_chunk: np.ndarray, sample_rate: int = 16000,
-                          channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
-        return {
-            'raw_text': '',
-            'language': 'en',
-            'error': 'Streaming transcription is not supported with the FasterWhisper backend.',
-        }
-
     def cleanup(self):
         self.model = None
+        self._initialized = False

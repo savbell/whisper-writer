@@ -12,6 +12,10 @@ class OpenAIBackend(TranscriptionBackendBase):
         self.OpenAI = None
         self.config = None
         self.client = None
+        self._initialized = False
+
+    def is_initialized(self) -> bool:
+        return self._initialized
 
     def initialize(self, options: Dict[str, Any]):
         try:
@@ -32,6 +36,7 @@ class OpenAIBackend(TranscriptionBackendBase):
 
         self.client = self.OpenAI(api_key=api_key, base_url=base_url)
         ConfigManager.log_print("OpenAI client initialized successfully.")
+        self._initialized = True
 
     def transcribe_complete(self, audio_data: np.ndarray, sample_rate: int = 16000,
                             channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
@@ -74,14 +79,6 @@ class OpenAIBackend(TranscriptionBackendBase):
                 'error': f"OpenAI transcription failed: {str(e)}",
             }
 
-    def transcribe_stream(self, audio_chunk: np.ndarray, sample_rate: int = 16000,
-                          channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
-        return {
-            'raw_text': '',
-            'language': language,
-            'error': 'Streaming transcription is not supported with the OpenAI backend.',
-        }
-
     def _prepare_audio_data(self, audio_data: np.ndarray, sample_rate: int,
                             channels: int) -> np.ndarray:
         # OpenAI expects 16kHz mono audio
@@ -105,4 +102,4 @@ class OpenAIBackend(TranscriptionBackendBase):
 
     def cleanup(self):
         self.client = None
-        ConfigManager.log_print("OpenAI client cleaned up.")
+        self._initialized = False

@@ -32,11 +32,15 @@ class EvdevBackend(InputBackendBase):
         self.evdev = evdev
         self.key_map = self._create_key_map()
 
-        # Initialize input devices
-        self.devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+        # Initialize input devices, excluding our virtual keyboard
+        self.devices = [evdev.InputDevice(path) for path in evdev.list_devices()
+                        if not self._is_virtual_keyboard(evdev.InputDevice(path))]
         self.stop_event = threading.Event()
         self._setup_signal_handler()
         self._start_listening()
+
+    def _is_virtual_keyboard(self, device):
+        return device.name == "WhisperWriter Virtual Keyboard"
 
     def _setup_signal_handler(self):
         """Set up signal handlers for graceful shutdown."""
@@ -89,6 +93,8 @@ class EvdevBackend(InputBackendBase):
 
     def _read_device_events(self, device):
         """Read and process events from a single device."""
+        if self._is_virtual_keyboard(device):
+            return  # Skip processing events from our virtual keyboard
         try:
             for event in device.read():
                 if event.type == self.evdev.ecodes.EV_KEY:

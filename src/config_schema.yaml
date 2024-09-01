@@ -42,6 +42,7 @@ profiles:
       options:
         - faster_whisper
         - openai
+        - vosk
     backend:
       type: dict
       description: "Backend-specific options"
@@ -68,7 +69,7 @@ profiles:
         type: int
         description: "The duration in milliseconds to wait for silence before stopping the recording."
       min_duration:
-        value: 100
+        value: 200
         type: int
         description: "The minimum duration in milliseconds for a recording to be processed. Recordings shorter than this will be discarded."
     post_processing:
@@ -84,6 +85,7 @@ profiles:
           - pynput
           - ydotool
           - dotool
+          - uinput
       enabled_scripts:
         value: []
         type: list
@@ -146,11 +148,6 @@ available_backends:
       value: null
       type: str
       description: "A string used as an initial prompt to condition the transcription."
-    capabilities:
-      streaming:
-        value: false
-        type: bool
-        description: "Whether this backend supports streaming transcription."
   openai:
     model:
       value: whisper-1
@@ -174,8 +171,22 @@ available_backends:
       value: null
       type: str
       description: "A string used as an initial prompt to condition the transcription."
-    capabilities:
-      streaming:
-        value: false
-        type: bool
-        description: "Whether this backend supports streaming transcription."
+  vosk:
+    model_path:
+      value: "./model"
+      type: dir_path
+      description: "Path to the folder containing the Vosk model files. Default is 'model' in the current directory."
+    sample_rate:
+      value: 16000
+      type: int
+      description: "Sample rate of the audio input. Vosk models are typically trained on 16kHz audio."
+      options:
+        - 8000
+        - 16000
+        - 22050
+        - 44100
+        - 48000
+    use_streaming:
+      value: false
+      type: bool
+      description: "If true, use streaming mode with partial results. If false, wait for complete audio before transcribing."

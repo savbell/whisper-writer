@@ -64,7 +64,13 @@ class AudioManager:
                                        .upper()]
         channels = 1
 
-        streaming_chunk_size = int(0.2 * sample_rate)  # 0.2 seconds of audio for streaming
+        # Use the backend-suggested chunk size
+        streaming_chunk_size = self.current_profile.streaming_chunk_size
+
+        # If streaming_chunk_size is None or 0, fall back to a default value
+        if not streaming_chunk_size:
+            streaming_chunk_size = int(0.2 * sample_rate)  # 0.2 seconds of audio for streaming
+
         # Skip running vad for the first 0.15 seconds to avoid mistaking keyboard noise for voice
         initial_frames_to_skip = int(0.15 * sample_rate / frame_size)
 
@@ -102,6 +108,11 @@ class AudioManager:
                 audio_buffer.clear()
                 recording.extend(frame)
 
+                if self.current_profile.is_streaming and len(recording) >= streaming_chunk_size:
+                    self._push_audio_chunk(np.array(recording[:streaming_chunk_size],
+                                                    dtype=np.int16), sample_rate, channels)
+                    recording = recording[streaming_chunk_size:]
+
                 if initial_frames_to_skip > 0:
                     initial_frames_to_skip -= 1
                     continue
@@ -118,15 +129,6 @@ class AudioManager:
                     if speech_detected and silent_frame_count > silence_frames:
                         break
 
-                if recording_mode in (RecordingMode.PRESS_TO_TOGGLE, RecordingMode.HOLD_TO_RECORD):
-                    if self.state != AudioManagerState.RECORDING:
-                        break
-
-                if self.current_profile.is_streaming and len(recording) >= streaming_chunk_size:
-                    self._push_audio_chunk(np.array(recording[:streaming_chunk_size],
-                                                    dtype=np.int16), sample_rate, channels)
-                    recording = recording[streaming_chunk_size:]
-
         if not self.current_profile.is_streaming:
             audio_data = np.array(recording, dtype=np.int16)
             duration = len(audio_data) / sample_rate
@@ -134,7 +136,7 @@ class AudioManager:
             ConfigManager.log_print(f'Recording finished. Size: {audio_data.size} samples, '
                                     f'Duration: {duration:.2f} seconds')
 
-            min_duration_ms = recording_options.get('min_duration', 100)
+            min_duration_ms = recording_options.get('min_duration', 200)
 
             if (duration * 1000) >= min_duration_ms:
                 self._push_audio_chunk(audio_data, sample_rate, channels)
@@ -142,9 +144,13 @@ class AudioManager:
                 ConfigManager.log_print('Discarded due to being too short.')
                 self.event_bus.emit("audio_discarded", self.current_session_id)
 
+        if self.state == AudioManagerState.RECORDING:
+            self.event_bus.emit("recording_stopped", self.current_session_id)
+
         self.current_profile = None
         self.current_session_id = None
-        self.state = AudioManagerState.IDLE
+        if self.state != AudioManagerState.STOPPED:
+            self.state = AudioManagerState.IDLE
 
     def _push_audio_chunk(self, audio_data: np.ndarray, sample_rate: int, channels: int):
         self.current_profile.audio_queue.put({

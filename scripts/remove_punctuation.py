@@ -1,6 +1,11 @@
 import string
 from post_processing_base import PostProcessor
+from typing import Dict
+
 
 class Processor(PostProcessor):
-    def process(self, text: str) -> str:
-        return text.translate(str.maketrans('', '', string.punctuation))
+    def process(self, transcription: Dict) -> Dict:
+        text = transcription.get('processed', transcription.get('raw_text', ''))
+        processed_text = text.translate(str.maketrans('', '', string.punctuation))
+        transcription['processed'] = processed_text
+        return transcription

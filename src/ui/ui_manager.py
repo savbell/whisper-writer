@@ -1,8 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QMessageBox
+
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
 from ui.tray_icon import TrayIcon
+from config_manager import ConfigManager
 
 
 class UIManager:
@@ -45,6 +47,7 @@ class UIManager:
 
     def handle_profile_state_change(self, message):
         """Handle changes in profile states, updating the status window if necessary."""
+        ConfigManager.log_print(message)
         if self.show_status_window:
             if message:
                 self.show_status(message)

@@ -15,13 +15,8 @@ class StatusWindow(BaseWindow):
         Initialize the status window.
         """
         super().__init__('WhisperWriter Status', 320, 120)
-        self.initStatusUI()
-
-    def initStatusUI(self):
-        """
-        Initialize the status user interface.
-        """
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool |
+                            Qt.WindowDoesNotAcceptFocus)
 
         status_layout = QHBoxLayout()
         status_layout.setContentsMargins(0, 0, 0, 0)
@@ -63,6 +58,7 @@ class StatusWindow(BaseWindow):
         y = screen_height - window_height - 120
 
         self.move(x, y)
+        self.setAttribute(Qt.WA_ShowWithoutActivating)
         super().show()
 
     @pyqtSlot(str)
@@ -77,3 +73,7 @@ class StatusWindow(BaseWindow):
             self.icon_label.setPixmap(self.pencil_pixmap)
         self.status_label.setText(message)
         self.show()
+
+    def focusInEvent(self, event):
+        self.clearFocus()
+        event.ignore()

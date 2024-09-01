@@ -193,7 +193,7 @@ class SettingsWindow(QWidget):
             'backend': [
                 'model', 'compute_type', 'device', 'model_path', 'vad_filter',
                 'condition_on_previous_text', 'base_url', 'api_key', 'temperature',
-                'initial_prompt', 'capabilities'
+                'initial_prompt'
             ]
         }
 
@@ -350,9 +350,6 @@ class SettingWidget(QWidget):
     def create_input_widget(self):
         widget_type = self.schema.get('type')
 
-        if 'capabilities' in self.config_key:
-            return self.create_read_only_checkbox()
-
         if widget_type == 'bool':
             return self.create_checkbox()
         elif widget_type == 'str' and 'options' in self.schema:
@@ -439,13 +436,6 @@ class SettingWidget(QWidget):
         browse_button.clicked.connect(browse_directory)
         line_edit.editingFinished.connect(lambda: self.update_config(line_edit.text()))
 
-        return widget
-
-    def create_read_only_checkbox(self):
-        widget = QCheckBox()
-        widget.setChecked(bool(self.value))
-        widget.setAttribute(Qt.WA_TransparentForMouseEvents)
-        widget.setFocusPolicy(Qt.NoFocus)
         return widget
 
     def update_config(self, value=None):
