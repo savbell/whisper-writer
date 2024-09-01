@@ -33,6 +33,7 @@ class PostProcessingManager:
 
     def process(self, transcription: Dict) -> Dict:
         result = copy.deepcopy(transcription)
+        result['processed'] = copy.copy(result['raw_text'])
         for processor in self.processors:
             result = processor.process(result)
         return result
