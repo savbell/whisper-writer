@@ -73,12 +73,14 @@ class ApplicationController:
 
     def start_recording(self, profile: Profile):
         """Start recording for a given profile."""
-        if profile.state == ProfileState.IDLE:
+        if (profile.state == ProfileState.IDLE and not self.audio_manager.is_recording()):
             session_id = str(uuid.uuid4())
             self.session_profile_map[session_id] = profile.name
             self.audio_manager.start_recording(profile, session_id)
             profile.start_transcription(session_id)
             self.manually_stopped_profiles.discard(profile.name)
+        else:
+            ConfigManager.log_print("Profile or audio thread is busy.")
 
     def stop_recording(self, profile: Profile):
         """Stop recording for a given profile."""

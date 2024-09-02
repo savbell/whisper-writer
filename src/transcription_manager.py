@@ -89,7 +89,6 @@ class TranscriptionManager:
 
             if self.state == TranscribingState.PROCESSING:
                 self._process_complete()
-            # Handle streaming transcription (including draining)
             elif self.state in (TranscribingState.STREAMING, TranscribingState.DRAINING):
                 self._process_streaming()
 
@@ -103,6 +102,12 @@ class TranscriptionManager:
             try:
                 # Try to get an audio chunk from the queue
                 audio_data = self.audio_queue.get(timeout=0.2)
+
+                if audio_data is None:  # Check for sentinel value
+                    if self.state == TranscribingState.DRAINING:
+                        self._finalize_streaming()
+                    break
+
                 if audio_data['session_id'] == self.current_session_id:
                     # Process the audio chunk and get the transcription result
                     result = self.backend.transcribe_stream(
@@ -114,10 +119,7 @@ class TranscriptionManager:
                     # Emit the result (could be partial or complete utterance)
                     self._emit_result(result)
             except queue.Empty:
-                # If the queue is empty and we're in DRAINING state, it's time to finalize
-                if self.state == TranscribingState.DRAINING and self.audio_queue.empty():
-                    self._finalize_streaming()
-                    break
+                continue
 
     def _finalize_streaming(self):
         # Get the final result from the backend (might include any buffered audio)
@@ -136,7 +138,11 @@ class TranscriptionManager:
 
         while self.state == TranscribingState.PROCESSING:
             try:
-                audio_data = self.audio_queue.get(timeout=0.5)
+                audio_data = self.audio_queue.get(timeout=0.2)
+
+                if audio_data is None:  # Check for sentinel value
+                    break
+
                 if audio_data['session_id'] == self.current_session_id:
                     start_time = time.time()
                     result = self.backend.transcribe_complete(
@@ -151,7 +157,6 @@ class TranscriptionManager:
                                             f"seconds.\nRaw transcription: {result['raw_text']}")
                     result['is_utterance_end'] = True
                     self._emit_result(result)
-                    break
             except queue.Empty:
                 continue
 

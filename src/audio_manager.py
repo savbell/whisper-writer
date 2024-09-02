@@ -2,22 +2,23 @@ import threading
 import numpy as np
 import sounddevice as sd
 import webrtcvad
-from collections import deque
+from collections import deque, namedtuple
+from queue import Queue, Empty
 
 from config_manager import ConfigManager
 from event_bus import EventBus
 from enums import RecordingMode, AudioManagerState
 from profile import Profile
 
+RecordingContext = namedtuple('RecordingContext', ['profile', 'session_id'])
+
 
 class AudioManager:
     def __init__(self, event_bus: EventBus):
         self.event_bus = event_bus
         self.state = AudioManagerState.STOPPED
-        self.state_change_event = threading.Event()
+        self.recording_queue = Queue()
         self.thread = None
-        self.current_profile = None
-        self.current_session_id = None
 
     def start(self):
         if self.state == AudioManagerState.STOPPED:
@@ -28,33 +29,36 @@ class AudioManager:
     def stop(self):
         if self.state != AudioManagerState.STOPPED:
             self.state = AudioManagerState.STOPPED
-            self.state_change_event.set()
+            self.recording_queue.put(None)  # Sentinel value to stop the thread
             if self.thread:
                 self.thread.join(timeout=2)
                 if self.thread.is_alive():
                     ConfigManager.log_print("Warning: Audio thread did not terminate gracefully.")
 
     def start_recording(self, profile: Profile, session_id: str):
-        self.current_profile = profile
-        self.current_session_id = session_id
-        self.state = AudioManagerState.RECORDING
-        self.state_change_event.set()
+        self.recording_queue.put(RecordingContext(profile, session_id))
 
     def stop_recording(self):
-        if self.state == AudioManagerState.RECORDING:
-            self.state = AudioManagerState.IDLE
-            self.state_change_event.set()
+        self.recording_queue.put(None)  # Sentinel value to stop current recording
+
+    def is_recording(self):
+        return self.state == AudioManagerState.RECORDING
 
     def _audio_thread(self):
         while self.state != AudioManagerState.STOPPED:
-            self.state_change_event.wait()
-            self.state_change_event.clear()
-            if self.state == AudioManagerState.RECORDING:
-                self._record_audio()
+            try:
+                context = self.recording_queue.get(timeout=0.5)
+                if context is None:
+                    continue  # Skip this iteration, effectively stopping the current recording
+                self.state = AudioManagerState.RECORDING
+                self._record_audio(context)
+                self.state = AudioManagerState.IDLE
+            except Empty:
+                continue
 
-    def _record_audio(self):
+    def _record_audio(self, context: RecordingContext):
         recording_options = ConfigManager.get_section('recording_options',
-                                                      self.current_profile.name)
+                                                      context.profile.name)
         sample_rate = recording_options.get('sample_rate', 16000)
         frame_duration_ms = 30
         frame_size = int(sample_rate * (frame_duration_ms / 1000.0))
@@ -65,7 +69,7 @@ class AudioManager:
         channels = 1
 
         # Use the backend-suggested chunk size
-        streaming_chunk_size = self.current_profile.streaming_chunk_size
+        streaming_chunk_size = context.profile.streaming_chunk_size
 
         # If streaming_chunk_size is None or 0, fall back to a default value
         if not streaming_chunk_size:
@@ -97,8 +101,8 @@ class AudioManager:
 
         with sd.InputStream(samplerate=sample_rate, channels=channels, dtype='int16',
                             blocksize=frame_size, device=sound_device, callback=audio_callback):
-            while self.state == AudioManagerState.RECORDING:
-                data_ready.wait()
+            while self.state != AudioManagerState.STOPPED and self.recording_queue.empty():
+                data_ready.wait(timeout=0.2)
                 data_ready.clear()
 
                 if len(audio_buffer) < frame_size:
@@ -108,9 +112,9 @@ class AudioManager:
                 audio_buffer.clear()
                 recording.extend(frame)
 
-                if self.current_profile.is_streaming and len(recording) >= streaming_chunk_size:
-                    self._push_audio_chunk(np.array(recording[:streaming_chunk_size],
-                                                    dtype=np.int16), sample_rate, channels)
+                if context.profile.is_streaming and len(recording) >= streaming_chunk_size:
+                    arr = np.array(recording[:streaming_chunk_size], dtype=np.int16)
+                    self._push_audio_chunk(context, arr, sample_rate, channels)
                     recording = recording[streaming_chunk_size:]
 
                 if initial_frames_to_skip > 0:
@@ -129,7 +133,7 @@ class AudioManager:
                     if speech_detected and silent_frame_count > silence_frames:
                         break
 
-        if not self.current_profile.is_streaming:
+        if not context.profile.is_streaming:
             audio_data = np.array(recording, dtype=np.int16)
             duration = len(audio_data) / sample_rate
 
@@ -138,23 +142,24 @@ class AudioManager:
 
             min_duration_ms = recording_options.get('min_duration', 200)
 
-            if (duration * 1000) >= min_duration_ms:
-                self._push_audio_chunk(audio_data, sample_rate, channels)
+            if vad and not speech_detected:
+                ConfigManager.log_print('Discarded because no speech has been detected.')
+                self.event_bus.emit("audio_discarded", context.session_id)
+            elif (duration * 1000) >= min_duration_ms:
+                self._push_audio_chunk(context, audio_data, sample_rate, channels)
             else:
                 ConfigManager.log_print('Discarded due to being too short.')
-                self.event_bus.emit("audio_discarded", self.current_session_id)
+                self.event_bus.emit("audio_discarded", context.session_id)
 
-        if self.state == AudioManagerState.RECORDING:
-            self.event_bus.emit("recording_stopped", self.current_session_id)
+        context.profile.audio_queue.put(None)  # Push sentinel value
 
-        self.current_profile = None
-        self.current_session_id = None
-        if self.state != AudioManagerState.STOPPED:
-            self.state = AudioManagerState.IDLE
+        if vad and self.state != AudioManagerState.STOPPED:
+            self.event_bus.emit("recording_stopped", context.session_id)
 
-    def _push_audio_chunk(self, audio_data: np.ndarray, sample_rate: int, channels: int):
-        self.current_profile.audio_queue.put({
-            'session_id': self.current_session_id,
+    def _push_audio_chunk(self, context: RecordingContext, audio_data: np.ndarray,
+                          sample_rate: int, channels: int):
+        context.profile.audio_queue.put({
+            'session_id': context.session_id,
             'sample_rate': sample_rate,
             'channels': channels,
             'language': 'auto',
@@ -165,5 +170,4 @@ class AudioManager:
         self.stop()
         # Reset all attributes to enforce garbage collection
         self.thread = None
-        self.current_profile = None
-        self.current_session_id = None
+        self.recording_queue = None
