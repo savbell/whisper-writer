@@ -12,14 +12,11 @@ class ProfileState(Enum):
     IDLE = 0
     RECORDING = 1
     TRANSCRIBING = 2
-    STREAMING = 3
 
 
 class TranscribingState(Enum):
     IDLE = 0
-    PROCESSING = 1
-    STREAMING = 2
-    DRAINING = 3
+    TRANSCRIBING = 1
 
 
 class AudioManagerState(Enum):

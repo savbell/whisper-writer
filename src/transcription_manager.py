@@ -16,13 +16,10 @@ class TranscriptionManager:
         self.audio_queue = profile.audio_queue
         self.backend_type = ConfigManager.get_value('backend_type', self.profile_name)
         backend_class = self._get_backend_class()
-        self.backend: TranscriptionBackendBase = backend_class()  # Instantiate the class
+        self.backend: TranscriptionBackendBase = backend_class()
         self.processing_thread = None
-        # Initialize the state to IDLE. This state indicates that no transcription
-        # is currently happening.
         self.state = TranscribingState.IDLE
         self.current_session_id = None
-        # Event used to signal the processing thread when there's work to do or when to exit
         self.transcribe_event = threading.Event()
         self.event_bus.subscribe("transcription_error", self._handle_transcription_error)
 
@@ -45,7 +42,7 @@ class TranscriptionManager:
             self.backend.initialize(backend_options)
 
         if not self.processing_thread:
-            self.processing_thread = threading.Thread(target=self._processing_thread)
+            self.processing_thread = threading.Thread(target=self._transcription_thread)
             self.processing_thread.start()
 
     def get_preferred_streaming_chunk_size(self):
@@ -58,107 +55,73 @@ class TranscriptionManager:
             self.processing_thread.join()
             self.processing_thread = None
 
-    def start_streaming(self, profile_name: str, session_id: str):
-        # Set the current session ID for tracking which audio stream we're processing
+    def start_transcription(self, session_id: str):
         self.current_session_id = session_id
-        # Change state to STREAMING, indicating that we're now actively transcribing incoming audio
-        self.state = TranscribingState.STREAMING
-        # Signal the processing thread to start working
+        self.state = TranscribingState.TRANSCRIBING
         self.transcribe_event.set()
 
-    def start_processing(self, profile_name: str, session_id: str):
-        self.current_session_id = session_id
-        self.state = TranscribingState.PROCESSING
-        self.transcribe_event.set()
-
-    def stop_streaming(self):
-        # Change state to DRAINING, indicating that we should process remaining audio in the queue
-        # but not accept new audio chunks
-        self.state = TranscribingState.DRAINING
-
-    def stop_processing(self):
-        self.state = TranscribingState.IDLE
-        self.current_session_id = None
-
-    def _processing_thread(self):
+    def _transcription_thread(self):
         while True:
             self.transcribe_event.wait()
             self.transcribe_event.clear()
+
             if self.state == TranscribingState.IDLE:
                 break
 
-            if self.state == TranscribingState.PROCESSING:
-                self._process_complete()
-            elif self.state in (TranscribingState.STREAMING, TranscribingState.DRAINING):
-                self._process_streaming()
+            self._process_audio()
 
-    def _process_streaming(self):
+    def _process_audio(self):
         if not self.backend:
-            ConfigManager.log_print("Backend not initialized. Streaming cannot start.")
+            ConfigManager.log_print("Backend not initialized. Transcription cannot start.")
             return
 
-        # Continue processing while we're either actively streaming or draining the queue
-        while self.state in (TranscribingState.STREAMING, TranscribingState.DRAINING):
+        is_streaming = ConfigManager.get_value('backend.use_streaming', self.profile_name)
+
+        while self.state == TranscribingState.TRANSCRIBING:
             try:
-                # Try to get an audio chunk from the queue
                 audio_data = self.audio_queue.get(timeout=0.2)
 
-                if audio_data is None:  # Check for sentinel value
-                    if self.state == TranscribingState.DRAINING:
-                        self._finalize_streaming()
+                if audio_data is None:  # Sentinel value
+                    self._finalize_transcription(is_streaming)
                     break
 
-                if audio_data['session_id'] == self.current_session_id:
-                    # Process the audio chunk and get the transcription result
-                    result = self.backend.transcribe_stream(
-                        audio_data['audio_chunk'],
-                        audio_data['sample_rate'],
-                        audio_data['channels'],
-                        audio_data['language']
-                    )
-                    # Emit the result (could be partial or complete utterance)
-                    self._emit_result(result)
+                result = self._transcribe_chunk(audio_data, is_streaming)
+                self._emit_result(result)
+
             except queue.Empty:
                 continue
 
-    def _finalize_streaming(self):
-        # Get the final result from the backend (might include any buffered audio)
-        final_result = self.backend.finalize_stream()
-        # Emit the final result
-        self._emit_result(final_result)
-        # Reset the state to IDLE and clear the session ID
+    def _transcribe_chunk(self, audio_data, is_streaming):
+        if is_streaming:
+            return self.backend.transcribe_stream(
+                audio_data['audio_chunk'],
+                audio_data['sample_rate'],
+                audio_data['channels'],
+                audio_data['language']
+            )
+        else:
+            start_time = time.time()
+            result = self.backend.transcribe_complete(
+                audio_data['audio_chunk'],
+                audio_data['sample_rate'],
+                audio_data['channels'],
+                audio_data['language']
+            )
+            end_time = time.time()
+            transcription_time = end_time - start_time
+            ConfigManager.log_print(f'Transcription completed in {transcription_time:.2f} '
+                                    f"seconds.\nRaw transcription: {result['raw_text']}")
+            result['is_utterance_end'] = True
+            return result
+
+    def _finalize_transcription(self, is_streaming):
+        if is_streaming:
+            final_result = self.backend.finalize_stream()
+            self._emit_result(final_result)
+
         self.state = TranscribingState.IDLE
         self.current_session_id = None
-        self.event_bus.emit("streaming_finished", self.profile_name)
-
-    def _process_complete(self):
-        if not self.backend:
-            ConfigManager.log_print("Backend not initialized. Processing cannot start.")
-            return
-
-        while self.state == TranscribingState.PROCESSING:
-            try:
-                audio_data = self.audio_queue.get(timeout=0.2)
-
-                if audio_data is None:  # Check for sentinel value
-                    break
-
-                if audio_data['session_id'] == self.current_session_id:
-                    start_time = time.time()
-                    result = self.backend.transcribe_complete(
-                        audio_data['audio_chunk'],
-                        audio_data['sample_rate'],
-                        audio_data['channels'],
-                        audio_data['language']
-                    )
-                    end_time = time.time()
-                    transcription_time = end_time - start_time
-                    ConfigManager.log_print(f'Transcription completed in {transcription_time:.2f} '
-                                            f"seconds.\nRaw transcription: {result['raw_text']}")
-                    result['is_utterance_end'] = True
-                    self._emit_result(result)
-            except queue.Empty:
-                continue
+        self.event_bus.emit("transcription_finished", self.profile_name)
 
     def _emit_result(self, result: Dict[str, Any]):
         # If there's an error in the result, emit a transcription error event

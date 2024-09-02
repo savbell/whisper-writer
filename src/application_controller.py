@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from audio_manager import AudioManager
 from input_manager import InputManager
-from enums import RecordingMode, ProfileState
+from enums import RecordingMode
 from profile import Profile
 from config_manager import ConfigManager
 from play_wav import play_wav
@@ -73,7 +73,7 @@ class ApplicationController:
 
     def start_recording(self, profile: Profile):
         """Start recording for a given profile."""
-        if (profile.state == ProfileState.IDLE and not self.audio_manager.is_recording()):
+        if profile.is_idle() and not self.audio_manager.is_recording():
             session_id = str(uuid.uuid4())
             self.session_profile_map[session_id] = profile.name
             self.audio_manager.start_recording(profile, session_id)
@@ -84,7 +84,7 @@ class ApplicationController:
 
     def stop_recording(self, profile: Profile):
         """Stop recording for a given profile."""
-        if profile.state in [ProfileState.RECORDING, ProfileState.STREAMING]:
+        if profile.is_recording():
             self.audio_manager.stop_recording()
             profile.stop_recording()
 
