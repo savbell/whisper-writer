@@ -205,7 +205,7 @@ Each profile has the following configurable options:
 a) Use Continuous or Voice Activity Detection (VAD) modes to minimize shortcut holding during typing.
 b) Choose shortcuts carefully, especially for "Press to Toggle" or "Hold to Record" modes.
 c) Test shortcuts by holding them down while typing to check for conflicts.
-d) Consider using mouse buttons (e.g., mouse_forward, mouse_backward) for "Hold to Record" mode.
+d) Consider using mouse buttons (e.g., mouse_forward, mouse_back) for "Hold to Record" mode.
 
 **Technical Explanation:** Current typing simulation methods create virtual keyboards, which are indistinguishable from physical keyboards at the display server level. This makes it impossible for user applications to differentiate between virtual and physical keyboard inputs.
 

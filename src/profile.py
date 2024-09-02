@@ -75,7 +75,16 @@ class Profile:
             self.event_bus.emit("transcription_complete", old_sid)
 
     def handle_raw_transcription(self, result: Dict, session_id: str):
-        """Process raw transcription results and emit the processed result."""
+        """
+        Handle raw transcription results.
+
+        The 'result' dictionary typically contains:
+        - 'raw_text': The unprocessed transcription text.
+        - 'processed': The post-processed transcription text. (created by the post_processor)
+        - 'is_utterance_end': Boolean indicating if this is the end of an utterance.
+        - 'language': Detected or specified language of the audio.
+        - 'error': Any error message (None if no error occurred).
+        """
         if session_id != self.current_session_id:
             return
 

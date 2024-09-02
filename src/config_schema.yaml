@@ -34,7 +34,7 @@ profiles:
     activation_key:
       value: ctrl+shift+space
       type: str
-      description: "The keyboard shortcut to activate this profile. Separate keys with a '+'."
+      description: "The keyboard shortcut to activate this profile. Separate keys with a '+'.\nThe full list of supported keys can be found in enums.py -> KeyCode(Enum).\nNot all input backends support all keys."
     backend_type:
       value: faster_whisper
       type: str
@@ -80,7 +80,7 @@ profiles:
       keyboard_simulator:
         value: pynput
         type: str
-        description: "The method to use for simulating keyboard input."
+        description: "The method to use for simulating keyboard input.\npynput's support of Wayland is flawed.\nydotool and dotool require respective programs.\nuinput is the lightest (dependency-free) option."
         options:
           - pynput
           - ydotool
@@ -89,7 +89,7 @@ profiles:
       enabled_scripts:
         value: []
         type: list
-        description: "List of post-processing scripts to apply (in order)"
+        description: "List of post-processing scripts to apply (in order). All scripts from the scripts folder will be displayed here. You can add new ones simply by coping add_trailing_space.py under a new name and editing it however you want."
 
 # Available backend options
 available_backends:
