@@ -57,4 +57,9 @@ class MainWindow(BaseWindow):
         Emit the start_listening signal when the start button is pressed.
         """
         self.start_listening.emit()
+
+    def hide_main_window(self):
+        """
+        Hide the main window.
+        """
         self.hide()

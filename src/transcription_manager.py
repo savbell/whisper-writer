@@ -39,7 +39,11 @@ class TranscriptionManager:
     def start(self):
         if not self.backend.is_initialized():
             backend_options = ConfigManager.get_section('backend', self.profile_name)
-            self.backend.initialize(backend_options)
+            try:
+                self.backend.initialize(backend_options)
+            except Exception as e:
+                raise RuntimeError(f"Failed to initialize backend for profile "
+                                   f"{self.profile_name}.\n{e}")
 
         if not self.processing_thread:
             self.processing_thread = threading.Thread(target=self._transcription_thread)

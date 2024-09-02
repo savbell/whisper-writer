@@ -21,9 +21,9 @@ class OpenAIBackend(TranscriptionBackendBase):
         try:
             from openai import OpenAI
             import soundfile as sf
-        except ImportError:
-            ConfigManager.log_print("Failed to import OpenAI or soundfile. Make sure they're installed.")
-            return
+        except ImportError as e:
+            raise RuntimeError(f"Failed to import required modules: {e}. "
+                               f"Make sure OpenAI and soundfile are installed.")
 
         self.OpenAI = OpenAI
         self.config = options
@@ -31,12 +31,14 @@ class OpenAIBackend(TranscriptionBackendBase):
         base_url = self.config.get('base_url') or 'https://api.openai.com/v1'
 
         if not api_key:
-            ConfigManager.log_print(f"OpenAI API key not found. Please set it in the configuration or as an environment variable.")
-            return
+            raise RuntimeError(f"OpenAI API key not found. Please set it in the configuration or as an environment variable.")
 
-        self.client = self.OpenAI(api_key=api_key, base_url=base_url)
-        ConfigManager.log_print("OpenAI client initialized successfully.")
-        self._initialized = True
+        try:
+            self.client = self.OpenAI(api_key=api_key, base_url=base_url)
+            ConfigManager.log_print("OpenAI client initialized successfully.")
+            self._initialized = True
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize OpenAI client: {e}")
 
     def transcribe_complete(self, audio_data: np.ndarray, sample_rate: int = 16000,
                             channels: int = 1, language: str = 'auto') -> Dict[str, Any]:

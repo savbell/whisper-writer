@@ -34,7 +34,7 @@ profiles:
     activation_key:
       value: ctrl+shift+space
       type: str
-      description: "The keyboard shortcut to activate this profile. Separate keys with a '+'.\nThe full list of supported keys can be found in enums.py -> KeyCode(Enum).\nNot all input backends support all keys."
+      description: "The keyboard shortcut to activate this profile. Separate keys with a '+'.\nYou can find the full list of supported keys in enums.py -> KeyCode(Enum).\nNot all input backends support all keys."
     backend_type:
       value: faster_whisper
       type: str

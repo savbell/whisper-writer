@@ -23,8 +23,7 @@ class VoskBackend(TranscriptionBackendBase):
             import vosk
             self.vosk = vosk
         except ImportError:
-            ConfigManager.log_print("Failed to import vosk. Make sure it's installed.")
-            return
+            raise RuntimeError("Failed to import vosk. Make sure it's installed.")
 
         try:
             model_path = self.config.get('model_path', "model")
@@ -34,7 +33,7 @@ class VoskBackend(TranscriptionBackendBase):
             ConfigManager.log_print("Vosk model initialized successfully.")
             self._initialized = True
         except Exception as e:
-            ConfigManager.log_print(f"Failed to initialize Vosk model: {e}")
+            raise RuntimeError(f"Failed to initialize Vosk model: {e}")
 
     def transcribe_complete(self, audio_data: np.ndarray, sample_rate: int = 16000,
                             channels: int = 1, language: str = 'auto') -> Dict[str, Any]:

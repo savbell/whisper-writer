@@ -120,7 +120,6 @@ class ApplicationController:
         """Initialize core components when the application starts listening."""
         self.listening = True
         self.start_core_components()
-        self.event_bus.emit("core_components_started")
 
     def handle_config_change(self):
         """Handle configuration changes by reloading profiles and restarting components."""
@@ -144,8 +143,25 @@ class ApplicationController:
         self.audio_manager = AudioManager(self.event_bus)
         self.input_manager.start()
         self.audio_manager.start()
+
+        initialization_error = None
         for profile in self.active_profiles.values():
-            profile.transcription_manager.start()
+            try:
+                profile.transcription_manager.start()
+            except RuntimeError as e:
+                initialization_error = str(e)
+                ConfigManager.log_print(f"Failed to start transcription manager for "
+                                        f"profile {profile.name}.\n{initialization_error}")
+                break
+
+        if initialization_error:
+            self.cleanup()
+            self.listening = False
+            error_message = (f"Failed to initialize transcription backend.\n"
+                             f"{initialization_error}\nPlease check your settings.")
+            self.ui_manager.show_settings_with_error(error_message)
+        else:
+            self.event_bus.emit("initialization_successful")
 
     def close_application(self):
         """Initiate the application closing process."""

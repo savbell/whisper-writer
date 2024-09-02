@@ -32,13 +32,14 @@ class UIManager:
     def setup_connections(self):
         """Establish connections between UI components and their corresponding actions."""
         self.main_window.open_settings.connect(self.settings_window.show)
-        self.main_window.start_listening.connect(lambda: self.event_bus.emit("start_listening"))
+        self.main_window.start_listening.connect(self.handle_start_listening)
         self.main_window.close_app.connect(self.initiate_close)
         self.tray_icon.open_settings.connect(self.settings_window.show)
         self.tray_icon.close_app.connect(self.initiate_close)
         self.event_bus.subscribe("quit_application", self.quit_application)
         self.event_bus.subscribe("profile_state_change", self.handle_profile_state_change)
         self.event_bus.subscribe("transcription_error", self.show_error_message)
+        self.event_bus.subscribe("initialization_successful", self.hide_main_window)
 
     def show_main_window(self):
         """Display the main application window and show the system tray icon."""
@@ -54,6 +55,14 @@ class UIManager:
             else:
                 self.hide_status()
 
+    def handle_start_listening(self):
+        """Handle the start listening event."""
+        self.event_bus.emit("start_listening")
+
+    def hide_main_window(self):
+        """Hide the main window after successful initialization."""
+        self.main_window.hide_main_window()
+
     def show_status(self, message):
         """Display a status message in the status window."""
         self.status_window.show_message(message)
@@ -61,6 +70,12 @@ class UIManager:
     def show_error_message(self, message):
         """Display an error message in a QMessageBox."""
         QMessageBox.critical(None, "Transcription Error", message)
+
+    def show_settings_with_error(self, error_message: str):
+        """Show the settings window with a detailed error message."""
+        QMessageBox.critical(self.main_window, "Initialization Error", error_message)
+        self.settings_window.show()
+        self.main_window.show()
 
     def hide_status(self):
         """Hide the status window."""

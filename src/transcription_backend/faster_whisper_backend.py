@@ -20,13 +20,13 @@ class FasterWhisperBackend(TranscriptionBackendBase):
             from faster_whisper import WhisperModel
             self.WhisperModel = WhisperModel
         except ImportError:
-            ConfigManager.log_print("Failed to import faster_whisper. Make sure it's installed.")
-            return
+            raise RuntimeError("Failed to import faster_whisper. Make sure it's installed.")
 
         self.config = options
         self._load_model()
-        if self.model:
-            self._initialized = True
+        if not self.model:
+            raise RuntimeError("Failed to initialize any Whisper model.")
+        self._initialized = True
 
     def _load_model(self):
         ConfigManager.log_print('Creating Faster Whisper model...')
@@ -64,8 +64,7 @@ class FasterWhisperBackend(TranscriptionBackendBase):
                                                compute_type='default')
                 ConfigManager.log_print('Base model loaded successfully on CPU.')
             except Exception as e:
-                ConfigManager.log_print(f'Failed to load base model on CPU: {e}')
-                ConfigManager.log_print("Failed to initialize any Whisper model.")
+                raise RuntimeError(f"Failed to load any Whisper model. Last error: {e}")
 
     def transcribe_complete(self, audio_data: np.ndarray, sample_rate: int = 16000,
                             channels: int = 1, language: str = 'auto') -> Dict[str, Any]:
