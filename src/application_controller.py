@@ -86,7 +86,7 @@ class ApplicationController:
         """Stop recording for a given profile."""
         if profile.is_recording():
             self.audio_manager.stop_recording()
-            profile.stop_recording()
+            profile.recording_stopped()
 
     def handle_recording_stopped(self, session_id: str):
         """Handle cases when audio stopped automatically in VAD and CONTINUOUS modes"""

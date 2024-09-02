@@ -7,6 +7,7 @@
       - Supports both streaming and non-streaming modes
       - In streaming mode, continuously emits small audio chunks (e.g., 200ms) to a queue
       - In non-streaming mode, collects all audio before sending it to the queue
+      - Uses sentinel values in the audio queue to signify the end of audio data
       - Uses session IDs to identify and manage individual recording sessions
       - Implements voice activity detection (VAD) for certain recording modes
 
@@ -17,7 +18,7 @@
         - OutputManager: Handles output operations specific to the profile
         - StreamingResultHandler: Manages streaming results (for streaming mode only)
       - Associated with a specific activation shortcut
-      - Maintains its state (IDLE, RECORDING, TRANSCRIBING, STREAMING)
+      - Maintains its state (IDLE, RECORDING, TRANSCRIBING)
       - Configurable for streaming or non-streaming transcription mode
       - Handles all result processing internally
 
@@ -104,7 +105,7 @@
    11. ApplicationController generates a new session ID and starts recording via AudioManager
    12. UIManager shows/updates StatusWindow if enabled
    13. AudioManager sends audio data to the profile's queue, either in chunks (streaming) or complete (non-streaming)
-   14. TranscriptionManager processes audio from the profile's queue based on the profile's configuration
+   14. TranscriptionManager processes audio from the profile's queue, using sentinel values to detect the end of audio data
    15. TranscriptionManager sends raw results to the Profile
    16. Profile processes the results:
        - Applies post-processing
@@ -132,3 +133,4 @@
    - Support for both streaming and non-streaming transcription modes, configurable per profile
    - Implementation of voice activity detection (VAD) for certain recording modes
    - Potential for future expansion to support more complex scenarios or multiple simultaneous active profiles
+   - Use of sentinel values in audio queues to simplify audio processing and state management in TranscriptionManager

@@ -49,8 +49,8 @@ class Profile:
                             f"{'Streaming' if self.is_streaming else 'Recording'}...")
         self.transcription_manager.start_transcription(session_id)
 
-    def stop_recording(self):
-        """Stop the recording process and transition to transcribing state."""
+    def recording_stopped(self):
+        """Transition to transcribing state since recording has stopped."""
         if self.state == ProfileState.RECORDING:
             self.event_bus.emit("profile_state_change", f"({self.name}) Transcribing...")
             self.state = ProfileState.TRANSCRIBING

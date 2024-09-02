@@ -128,8 +128,6 @@ class TranscriptionManager:
         if result['error']:
             self.event_bus.emit("transcription_error", result['error'])
 
-        # Emit the raw transcription result
-        # This could be a partial result, a complete utterance, or the final result of the stream
         self.event_bus.emit("raw_transcription_result", result, self.current_session_id)
 
     def _handle_transcription_error(self, message: str):
