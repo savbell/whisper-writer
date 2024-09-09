@@ -93,12 +93,18 @@ class OpenAIBackend(TranscriptionBackendBase):
             except ImportError:
                 raise RuntimeError("librosa is required for audio resampling. Please install it.")
 
-        # Ensure the audio data is in float32 format and normalized
-        if audio_data.dtype != np.float32:
-            audio_data = audio_data.astype(np.float32)
-
-        if audio_data.max() > 1.0 or audio_data.min() < -1.0:
+        # Ensure audio_data is in the correct format (float32, range [-1, 1])
+        if audio_data.dtype == np.float32 and np.abs(audio_data).max() <= 1.0:
+            # Data is already in the correct format
+            pass
+        elif audio_data.dtype == np.float32:
+            # Data is float32 but may not be in [-1, 1] range
             audio_data = np.clip(audio_data, -1.0, 1.0)
+        elif audio_data.dtype in [np.int16, np.int32]:
+            # Convert integer PCM to float32
+            audio_data = audio_data.astype(np.float32) / np.iinfo(audio_data.dtype).max
+        else:
+            raise ValueError(f"Unsupported audio format: {audio_data.dtype}")
 
         return audio_data
 
