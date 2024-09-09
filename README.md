@@ -6,21 +6,42 @@
     <img src="./assets/ww-demo-image-02.gif" alt="WhisperWriter demo gif" width="340" height="136">
 </p>
 
-**Update (2024-05-28):** I've just merged in a major rewrite of WhisperWriter! We've migrated from using `tkinter` to using `PyQt5` for the UI, added a new settings window for configuration, a new continuous recording mode, support for a local API, and more! Please be patient as I work out any bugs that may have been introduced in the process. If you encounter any problems, please [open a new issue](https://github.com/savbell/whisper-writer/issues)!
+WhisperWriter is a versatile speech-to-text application that leverages multiple transcription backends, including [OpenAI's Whisper model](https://openai.com/research/whisper), [Faster Whisper](https://github.com/SYSTRAN/faster-whisper/), and [VOSK](https://alphacephei.com/vosk/) to automatically transcribe audio from your microphone to the active window or other configurable outputs.
 
-WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone to the active window.
+### Key Features
 
-Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+shift+space` by default). When the shortcut is pressed, the app starts recording from your microphone. There are four recording modes to choose from:
-- `continuous` (default): Recording will stop after a long enough pause in your speech. The app will transcribe the text and then start recording again. To stop listening, press the keyboard shortcut again.
-- `voice_activity_detection`: Recording will stop after a long enough pause in your speech. Recording will not start until the keyboard shortcut is pressed again.
-- `press_to_toggle` Recording will stop when the keyboard shortcut is pressed again. Recording will not start until the keyboard shortcut is pressed again.
-- `hold_to_record` Recording will continue until the keyboard shortcut is released. Recording will not start until the keyboard shortcut is held down again.
+- **Multiple Profiles**: Configure and switch between different transcription setups on-the-fly.
+- **Flexible Backends**: Support for local (Faster Whisper, VOSK) and API-based (OpenAI) transcription.
+- **Customizable Shortcuts**: Each profile can have its own activation shortcut.
+- **Various Recording Modes**: Choose from continuous, voice activity detection, press-to-toggle, or hold-to-record modes.
+- **Post-Processing**: Apply customizable post-processing scripts to refine transcription output.
+- **Multiple Output Methods**: Write to active window or implement new output handlers.
+- **Streaming Support**: VOSK backend supports real-time transcription for immediate feedback.
 
-You can change the keyboard shortcut (`activation_key`) and recording mode in the [Configuration Options](#configuration-options). While recording and transcribing, a small status window is displayed that shows the current stage of the process (but this can be turned off). Once the transcription is complete, the transcribed text will be automatically written to the active window.
+### How It Works
 
-The transcription can either be done locally through the [faster-whisper Python package](https://github.com/SYSTRAN/faster-whisper/) or through a request to [OpenAI's API](https://platform.openai.com/docs/guides/speech-to-text). By default, the app will use a local model, but you can change this in the [Configuration Options](#configuration-options). If you choose to use the API, you will need to either provide your OpenAI API key or change the base URL endpoint.
+WhisperWriter runs in the background, waiting for configured keyboard shortcuts. When a shortcut is pressed, the corresponding profile is activated, initiating the following process:
 
-**Fun fact:** Almost the entirety of the initial release of the project was pair-programmed with [ChatGPT-4](https://openai.com/product/gpt-4) and [GitHub Copilot](https://github.com/features/copilot) using VS Code. Practically every line, including most of this README, was written by AI. After the initial prototype was finished, WhisperWriter was used to write a lot of the prompts as well!
+1. **Recording**: Audio is captured from the specified input device.
+2. **Transcription**: The audio is processed by the configured backend.
+3. **Post-Processing**: The transcribed text undergoes any specified post-processing steps.
+4. **Output**: The final text is sent to the configured output method (e.g., typed into the active window).
+
+A status window can optionally display the current stage of the process.
+
+For more detailed information about the application's architecture and components, please refer to the [Design Document](DESIGN.md).
+
+### Recording Modes
+
+- **Continuous**: Records and transcribes continuously until the shortcut is pressed again.
+- **Voice Activity Detection**: Stops recording after a pause in speech.
+- **Press-to-Toggle**: Starts/stops recording with each shortcut press.
+- **Hold-to-Record**: Records only while the shortcut is held down.
+
+Refer to the [Configuration Options](#configuration-options) section for detailed settings.
+
+WhisperWriter's modular design allows for easy extension with new backends, input methods, and output handlers to suit a wide range of use cases.
+
 
 ## Getting Started
 
@@ -111,65 +132,108 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
     <img src="./assets/ww-settings-demo.gif" alt="WhisperWriter Settings window demo gif" width="350" height="350">
 </p>
 
-#### Model Options
-- `use_api`: Toggle to choose whether to use the OpenAI API or a local Whisper model for transcription. (Default: `false`)
-- `common`: Options common to both API and local models.
-  - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes). (Default: `null`)
-  - `temperature`: Controls the randomness of the transcription output. Lower values make the output more focused and deterministic. (Default: `0.0`)
-  - `initial_prompt`: A string used as an initial prompt to condition the transcription. More info: [OpenAI Prompting Guide](https://platform.openai.com/docs/guides/speech-to-text/prompting). (Default: `null`)
+### Global Options
 
-- `api`: Configuration options for the OpenAI API. See the [OpenAI API documentation](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more information.
-  - `model`: The model to use for transcription. Currently, only `whisper-1` is available. (Default: `whisper-1`)
-  - `base_url`: The base URL for the API. Can be changed to use a local API endpoint, such as [LocalAI](https://localai.io/). (Default: `https://api.openai.com/v1`)
-  - `api_key`: Your API key for the OpenAI API. Required for non-local API usage. (Default: `null`)
+These options apply to all profiles:
 
-- `local`: Configuration options for the local Whisper model.
-  - `model`: The model to use for transcription. The larger models provide better accuracy but are slower. See [available models and languages](https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages). (Default: `base`)
-  - `device`: The device to run the local Whisper model on. Use `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `auto` to let the system automatically choose the best available device. (Default: `auto`)
-  - `compute_type`: The compute type to use for the local Whisper model. [More information on quantization here](https://opennmt.net/CTranslate2/quantization.html). (Default: `default`)
-  - `condition_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
-  - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `false`)
-  - `model_path`: The path to the local Whisper model. If not specified, the default model will be downloaded. (Default: `null`)
+- `active_profiles`: List of active profiles. (Default: `[Default]`)
+- `input_backend`: The input backend for detecting key presses. Options: `auto`, `evdev`, `pynput`. (Default: `auto`)
+- `print_to_terminal`: Print script status and transcribed text to the terminal. (Default: `true`)
+- `show_status_window`: Show the status window during operation. (Default: `true`)
+- `noise_on_completion`: Play a noise after transcription is typed out. (Default: `false`)
+
+### Profile Options
+
+Each profile has the following configurable options:
+
+- `name`: The name of the profile. (Default: `Default`)
+- `activation_key`: Keyboard shortcut to activate this profile. Separate keys with '+'. (Default: `ctrl+shift+space`)
+- `backend_type`: Transcription backend to use. Options: `faster_whisper`, `openai`. (Default: `faster_whisper`)
 
 #### Recording Options
-- `activation_key`: The keyboard shortcut to activate the recording and transcribing process. Separate keys with a `+`. (Default: `ctrl+shift+space`)
-- `input_backend`: The input backend to use for detecting key presses. `auto` will try to use the best available backend. (Default: `auto`)
-- `recording_mode`: The recording mode to use. Options include `continuous` (auto-restart recording after pause in speech until activation key is pressed again), `voice_activity_detection` (stop recording after pause in speech), `press_to_toggle` (stop recording when activation key is pressed again), `hold_to_record` (stop recording when activation key is released). (Default: `continuous`)
-- `sound_device`: The numeric index of the sound device to use for recording. To find device numbers, run `python -m sounddevice`. (Default: `null`)
-- `sample_rate`: The sample rate in Hz to use for recording. (Default: `16000`)
-- `silence_duration`: The duration in milliseconds to wait for silence before stopping the recording. (Default: `900`)
-- `min_duration`: The minimum duration in milliseconds for a recording to be processed. Recordings shorter than this will be discarded. (Default: `100`)
+
+- `sound_device`: Numeric index of the sound device for recording. Run `python -m sounddevice` to find device numbers. (Default: `null`)
+- `sample_rate`: Sample rate in Hz for recording. (Default: `16000`)
+- `recording_mode`: Recording mode to use. Options: `continuous`, `voice_activity_detection`, `press_to_toggle`, `hold_to_record`. (Default: `continuous`)
+- `silence_duration`: Duration in milliseconds to wait for silence before stopping recording. (Default: `900`)
+- `min_duration`: Minimum duration in milliseconds for a recording to be processed. (Default: `100`)
 
 #### Post-processing Options
-- `writing_key_press_delay`: The delay in seconds between each key press when writing the transcribed text. (Default: `0.005`)
-- `remove_trailing_period`: Set to `true` to remove the trailing period from the transcribed text. (Default: `false`)
-- `add_trailing_space`: Set to `true` to add a space to the end of the transcribed text. (Default: `true`)
-- `remove_capitalization`: Set to `true` to convert the transcribed text to lowercase. (Default: `false`)
-- `input_method`: The method to use for simulating keyboard input. (Default: `pynput`)
 
-#### Miscellaneous Options
-- `print_to_terminal`: Set to `true` to print the script status and transcribed text to the terminal. (Default: `true`)
-- `hide_status_window`: Set to `true` to hide the status window during operation. (Default: `false`)
-- `noise_on_completion`: Set to `true` to play a noise after the transcription has been typed out. (Default: `false`)
+- `writing_key_press_delay`: Delay in seconds between each key press when writing transcribed text. (Default: `0.005`)
+- `keyboard_simulator`: Method for simulating keyboard input. Options: `pynput`, `ydotool`, `dotool`. (Default: `pynput`)
+- `enabled_scripts`: List of post-processing scripts to apply (in order). (Default: `[]`)
 
-If any of the configuration options are invalid or not provided, the program will use the default values.
+### Backend-specific Options
+
+#### Faster Whisper
+
+- `model`: Model to use for transcription. Options: `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`, `large-v1`, `large-v2`, `large-v3`. (Default: `base`)
+- `compute_type`: Compute type for the local Whisper model. Options: `default`, `float32`, `float16`, `int8`. (Default: `default`)
+- `device`: Device to run the local Whisper model on. Options: `auto`, `cuda`, `cpu`. (Default: `auto`)
+- `model_path`: Path to the folder containing model files. Leave empty to use online models. (Default: `null`)
+- `vad_filter`: Use voice activity detection (VAD) filter to remove silence. (Default: `false`)
+- `condition_on_previous_text`: Use previously transcribed text as a prompt for the next transcription. (Default: `true`)
+- `temperature`: Controls randomness of transcription output. Lower values make output more focused and deterministic. (Default: `0.0`)
+- `initial_prompt`: String used as an initial prompt to condition the transcription. (Default: `null`)
+
+#### OpenAI
+
+- `model`: Model to use for transcription. Currently only `whisper-1` is available. (Default: `whisper-1`)
+- `base_url`: Base URL for the API. Can be changed to use a local API endpoint. (Default: `https://api.openai.com/v1`)
+- `api_key`: Your API key for the OpenAI API. Required for API usage. (Default: `null`)
+- `temperature`: Controls randomness of transcription output. Lower values make output more focused and deterministic. (Default: `0.0`)
+- `initial_prompt`: String used as an initial prompt to condition the transcription. (Default: `null`)
+
+#### VOSK
+
+- `model_path`: Path to the folder containing the Vosk model files. Default is 'model' in the current directory.
+- `sample_rate`: Sample rate of the audio input. Vosk models are typically trained on 16kHz audio.
+- `use_streaming`: If true, use streaming mode with partial results. If false, wait for complete audio before transcribing.
 
 ## Known Issues
+
+### 1. Shortcut Interference with Output
+
+**Issue:** Shortcuts can interfere with the application's output, potentially causing unintended effects in the target application.
+
+**Examples:**
+- Holding "Shift" during output results in capitalized text.
+- Holding "Ctrl" while the app types "v" may trigger a paste command in the target application.
+
+**Workarounds:**
+a) Use Continuous or Voice Activity Detection (VAD) modes to minimize shortcut holding during typing.
+b) Choose shortcuts carefully, especially for "Press to Toggle" or "Hold to Record" modes.
+c) Test shortcuts by holding them down while typing to check for conflicts.
+d) Consider using mouse buttons (e.g., mouse_forward, mouse_back) for "Hold to Record" mode.
+
+**Technical Explanation:** Current typing simulation methods create virtual keyboards, which are indistinguishable from physical keyboards at the display server level. This makes it impossible for user applications to differentiate between virtual and physical keyboard inputs.
+
+**Potential Future Solution:** Developing an Input Method module for ibus or fcitx could overcome this limitation, as these frameworks operate above the display server level.
+
+### 2. Status Window Focus Issues on Wayland
+
+**Issue:** The status window grabs focus and interferes with output when using the Wayland display server.
+
+**Workaround:** Consider disabling the status window by turning off the "Show status window" option in the settings.
+
+### General Recommendations
+
+1. Carefully select and test shortcuts to minimize conflicts with your typical workflow and applications.
+2. Be aware of the limitations when using "Press to Toggle" or "Hold to Record" modes, especially with streaming transcription.
+3. On Wayland systems, consider operating without the status window for smoother performance.
 
 You can see all reported issues and their current status in our [Issue Tracker](https://github.com/savbell/whisper-writer/issues). If you encounter a problem, please [open a new issue](https://github.com/savbell/whisper-writer/issues/new) with a detailed description and reproduction steps, if possible.
 
 ## Roadmap
 Below are features I am planning to add in the near future:
-- [x] Restructuring configuration options to reduce redundancy
-- [x] Update to use the latest version of the OpenAI API
+- [ ] Add streaming transcription for Whisper backend
+- [ ] Upgrade to Qt6.
+- [ ] Create an IME module for output
 - [ ] Additional post-processing options:
   - [ ] Simple word replacement (e.g. "gonna" -> "going to" or "smiley face" -> "😊")
   - [ ] Using GPT for instructional post-processing
-- [x] Updating GUI
 - [ ] Creating standalone executable file
-
-Below are features not currently planned:
-- [ ] Pipelining audio files
 
 Implemented features can be found in the [CHANGELOG](CHANGELOG.md).
 

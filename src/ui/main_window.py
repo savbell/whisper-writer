@@ -1,16 +1,18 @@
 import os
 import sys
 from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QApplication, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QPushButton, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 class MainWindow(BaseWindow):
-    openSettings = pyqtSignal()
-    startListening = pyqtSignal()
-    closeApp = pyqtSignal()
+    open_settings = pyqtSignal()
+    start_listening = pyqtSignal()
+    close_app = pyqtSignal()
 
     def __init__(self):
         """
@@ -26,12 +28,12 @@ class MainWindow(BaseWindow):
         start_btn = QPushButton('Start')
         start_btn.setFont(QFont('Segoe UI', 10))
         start_btn.setFixedSize(120, 60)
-        start_btn.clicked.connect(self.startPressed)
+        start_btn.clicked.connect(self.start_pressed)
 
         settings_btn = QPushButton('Settings')
         settings_btn.setFont(QFont('Segoe UI', 10))
         settings_btn.setFixedSize(120, 60)
-        settings_btn.clicked.connect(self.openSettings.emit)
+        settings_btn.clicked.connect(self.open_settings.emit)
 
         button_layout = QHBoxLayout()
         button_layout.addStretch(1)
@@ -47,17 +49,17 @@ class MainWindow(BaseWindow):
         """
         Close the application when the main window is closed.
         """
-        self.closeApp.emit()
+        self.close_app.emit()
+        event.ignore()
 
-    def startPressed(self):
+    def start_pressed(self):
         """
-        Emit the startListening signal when the start button is pressed.
+        Emit the start_listening signal when the start button is pressed.
         """
-        self.startListening.emit()
+        self.start_listening.emit()
+
+    def hide_main_window(self):
+        """
+        Hide the main window.
+        """
         self.hide()
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
