@@ -96,7 +96,7 @@ def post_process_transcription(transcription):
     post_processing = ConfigManager.get_config_section('post_processing')
     if post_processing['remove_trailing_period'] and transcription.endswith('.'):
         transcription = transcription[:-1]
-    if post_processing['add_trailing_space']:
+    if transcription and post_processing['add_trailing_space']:
         transcription += ' '
     if post_processing['remove_capitalization']:
         transcription = transcription.lower()
