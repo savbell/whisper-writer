@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QRectF
-from PyQt5.QtGui import QPainter, QBrush, QColor, QFont, QPainterPath, QGuiApplication
+from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QFont, QPainterPath, QGuiApplication
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QMainWindow
 
 
@@ -106,12 +106,19 @@ class BaseWindow(QMainWindow):
 
     def paintEvent(self, event):
         """
-        Create a rounded rectangle with a semi-transparent white background.
+        Create a rounded rectangle with a semi-transparent white background and a discreet border.
         """
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), 20, 20)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+
+        pen_width = 1.5
+        painter.setPen(QPen(QColor(0, 0, 0, 80), pen_width))
         painter.setBrush(QBrush(QColor(255, 255, 255, 220)))
-        painter.setPen(Qt.NoPen)
+
+        path = QPainterPath()
+        rect = QRectF(self.rect())
+        half_pen_width = pen_width / 2
+        rect.adjust(half_pen_width, half_pen_width, -half_pen_width, -half_pen_width)
+        path.addRoundedRect(rect, 20, 20)
+
         painter.drawPath(path)
