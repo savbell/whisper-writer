@@ -54,6 +54,7 @@ model_options:
         - large-v1
         - large-v2
         - large-v3
+        - deepdml/faster-whisper-large-v3-turbo-ct2
     device:
       value: auto
       type: str
