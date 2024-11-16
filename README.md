@@ -94,6 +94,12 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+To *later* upgrade these packages after updating your WhisperWriter repository, run:
+
+```
+pip install --upgrade -r requirements.txt
+```
+
 #### 4. Run the Python code:
 
 ```
@@ -101,6 +107,7 @@ python run.py
 ```
 
 #### 5. Configure and start WhisperWriter:
+
 On first run, a Settings window should appear. Once configured and saved, another window will open. Press "Start" to activate the keyboard listener. Press the activation key (`ctrl+shift+space` by default) to start recording and transcribing to the active window.
 
 ### Configuration Options
