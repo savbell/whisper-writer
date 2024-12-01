@@ -165,3 +165,7 @@ misc:
     value: false
     type: bool
     description: "Set to true to play a noise after the transcription has been typed out."
+  start_minimized:
+    value: false
+    type: bool
+    description: "Set to true to start the application minimized to the system tray and ready for transcription immediately"
