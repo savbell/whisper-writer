@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Callable, Set
+from typing import Optional, Callable, Set
+import time
 
 from utils import ConfigManager
 
@@ -12,6 +13,7 @@ class InputEvent(Enum):
     MOUSE_RELEASE = auto()
 
 class KeyCode(Enum):
+    """Enum for key codes."""
     # Modifier keys
     CTRL_LEFT = auto()
     CTRL_RIGHT = auto()
@@ -113,22 +115,21 @@ class KeyCode(Enum):
     RIGHT = auto()
 
     # Numpad keys
-    NUMPAD_0 = auto()
-    NUMPAD_1 = auto()
-    NUMPAD_2 = auto()
-    NUMPAD_3 = auto()
-    NUMPAD_4 = auto()
-    NUMPAD_5 = auto()
-    NUMPAD_6 = auto()
-    NUMPAD_7 = auto()
-    NUMPAD_8 = auto()
-    NUMPAD_9 = auto()
-    NUMPAD_ADD = auto()
-    NUMPAD_SUBTRACT = auto()
-    NUMPAD_MULTIPLY = auto()
-    NUMPAD_DIVIDE = auto()
-    NUMPAD_DECIMAL = auto()
-    NUMPAD_ENTER = auto()
+    NUMPAD_0 = 96
+    NUMPAD_1 = 97
+    NUMPAD_2 = 98
+    NUMPAD_3 = 99
+    NUMPAD_4 = 100
+    NUMPAD_5 = 101
+    NUMPAD_6 = 102
+    NUMPAD_7 = 103
+    NUMPAD_8 = 104
+    NUMPAD_9 = 105
+    NUMPAD_MULTIPLY = 106
+    NUMPAD_ADD = 107
+    NUMPAD_SUBTRACT = 109
+    NUMPAD_DECIMAL = 110
+    NUMPAD_DIVIDE = 111
 
     # Additional special characters
     MINUS = auto()
@@ -251,15 +252,47 @@ class KeyChord:
         """Initialize the KeyChord."""
         self.keys = keys
         self.pressed_keys: Set[KeyCode] = set()
+        if keys:
+            self.is_single_key = len(keys) == 1 and isinstance(next(iter(keys)), KeyCode)
+            self.target_key = next(iter(keys)) if self.is_single_key else None
+        else:
+            self.is_single_key = False
+            self.target_key = None
+        self.last_trigger_time = 0
+        self.debounce_delay = 0.3
+        self.is_recording = False  # Track recording state
 
     def update(self, key: KeyCode, event_type: InputEvent) -> bool:
         """Update the state of pressed keys and check if the chord is active."""
+        current_time = time.time()
+        
         if event_type == InputEvent.KEY_PRESS:
             self.pressed_keys.add(key)
-        elif event_type == InputEvent.KEY_RELEASE:
+        else:
             self.pressed_keys.discard(key)
-
-        return self.is_active()
+            
+        # For single modifier keys, we want to trigger on press and maintain state until release
+        if self.is_single_key and key == self.target_key:
+            if event_type == InputEvent.KEY_PRESS:
+                if current_time - self.last_trigger_time >= self.debounce_delay:
+                    self.last_trigger_time = current_time
+                    self.is_recording = True
+                    return True
+            elif event_type == InputEvent.KEY_RELEASE:
+                self.is_recording = False
+                return False
+            return self.is_recording
+            
+        # For key combinations
+        is_active = self.is_active()
+        if is_active and current_time - self.last_trigger_time >= self.debounce_delay:
+            self.last_trigger_time = current_time
+            self.is_recording = True
+            return True
+        elif not is_active and self.is_recording:
+            self.is_recording = False
+            return False
+        return self.is_recording
 
     def is_active(self) -> bool:
         """Check if all keys in the chord are currently pressed."""
@@ -280,10 +313,18 @@ class KeyListener:
         """Initialize the KeyListener with backends and activation keys."""
         self.backends = []
         self.active_backend = None
-        self.key_chord = None
+        self.main_key_chord = None
+        self.llm_key_chord = None
+        self.llm_instruction_key_chord = None
+        self.text_cleanup_chord = None
         self.callbacks = {
             "on_activate": [],
-            "on_deactivate": []
+            "on_deactivate": [],
+            "on_activate_with_llm": [],
+            "on_deactivate_with_llm": [],
+            "on_activate_with_llm_instruction": [],
+            "on_deactivate_with_llm_instruction": [],
+            "on_text_cleanup": []
         }
         self.load_activation_keys()
         self.initialize_backends()
@@ -353,50 +394,130 @@ class KeyListener:
 
     def load_activation_keys(self):
         """Load activation keys from configuration."""
-        key_combination = ConfigManager.get_config_value('recording_options', 'activation_key')
-        keys = self.parse_key_combination(key_combination)
-        self.set_activation_keys(keys)
+        main_key = ConfigManager.get_config_value('recording_options', 'activation_key')
+        llm_key = ConfigManager.get_config_value('recording_options', 'llm_cleanup_key')
+        llm_instruction_key = ConfigManager.get_config_value('recording_options', 'llm_instruction_key')
+        text_cleanup_key = ConfigManager.get_config_value('recording_options', 'text_cleanup_key')
+        
+        main_keys = self.parse_key_combination(main_key)
+        llm_keys = self.parse_key_combination(llm_key)
+        llm_instruction_keys = self.parse_key_combination(llm_instruction_key)
+        text_cleanup_keys = self.parse_key_combination(text_cleanup_key)
+        
+        self.main_key_chord = KeyChord(main_keys)
+        self.llm_key_chord = KeyChord(llm_keys)
+        self.llm_instruction_key_chord = KeyChord(llm_instruction_keys)
+        self.text_cleanup_chord = KeyChord(text_cleanup_keys)
 
     def parse_key_combination(self, combination_string: str) -> Set[KeyCode | frozenset[KeyCode]]:
         """Parse a string representation of key combination into a set of KeyCodes."""
+        if not combination_string:
+            return set()
+        
         keys = set()
-        key_map = {
-            'CTRL': frozenset({KeyCode.CTRL_LEFT, KeyCode.CTRL_RIGHT}),
-            'SHIFT': frozenset({KeyCode.SHIFT_LEFT, KeyCode.SHIFT_RIGHT}),
-            'ALT': frozenset({KeyCode.ALT_LEFT, KeyCode.ALT_RIGHT}),
-            'META': frozenset({KeyCode.META_LEFT, KeyCode.META_RIGHT}),
+        modifier_map = {
+            'ctrl': frozenset({KeyCode.CTRL_LEFT, KeyCode.CTRL_RIGHT}),
+            'lctrl': KeyCode.CTRL_LEFT,
+            'rctrl': KeyCode.CTRL_RIGHT,
+            'alt': frozenset({KeyCode.ALT_LEFT, KeyCode.ALT_RIGHT}),
+            'lalt': KeyCode.ALT_LEFT,
+            'ralt': KeyCode.ALT_RIGHT,
+            'shift': frozenset({KeyCode.SHIFT_LEFT, KeyCode.SHIFT_RIGHT}),
+            'lshift': KeyCode.SHIFT_LEFT,
+            'rshift': KeyCode.SHIFT_RIGHT,
+            'meta': frozenset({KeyCode.META_LEFT, KeyCode.META_RIGHT}),
+            'lmeta': KeyCode.META_LEFT,
+            'rmeta': KeyCode.META_RIGHT,
         }
 
-        for key in combination_string.upper().split('+'):
+        # Add number key mappings
+        number_map = {
+            '0': KeyCode.ZERO, '1': KeyCode.ONE, '2': KeyCode.TWO,
+            '3': KeyCode.THREE, '4': KeyCode.FOUR, '5': KeyCode.FIVE,
+            '6': KeyCode.SIX, '7': KeyCode.SEVEN, '8': KeyCode.EIGHT,
+            '9': KeyCode.NINE
+        }
+
+        # Add numpad key mappings
+        numpad_map = {
+            'numpad0': KeyCode.NUMPAD_0,
+            'numpad1': KeyCode.NUMPAD_1,
+            'numpad2': KeyCode.NUMPAD_2,
+            'numpad3': KeyCode.NUMPAD_3,
+            'numpad4': KeyCode.NUMPAD_4,
+            'numpad5': KeyCode.NUMPAD_5,
+            'numpad6': KeyCode.NUMPAD_6,
+            'numpad7': KeyCode.NUMPAD_7,
+            'numpad8': KeyCode.NUMPAD_8,
+            'numpad9': KeyCode.NUMPAD_9,
+            'multiply': KeyCode.NUMPAD_MULTIPLY,
+            'add': KeyCode.NUMPAD_ADD,
+            'subtract': KeyCode.NUMPAD_SUBTRACT,
+            'decimal': KeyCode.NUMPAD_DECIMAL,
+            'divide': KeyCode.NUMPAD_DIVIDE,
+        }
+
+        for key in combination_string.lower().split('+'):
             key = key.strip()
-            if key in key_map:
-                keys.add(key_map[key])
+            if key in modifier_map:
+                keys.add(modifier_map[key])
+            elif key in number_map:
+                keys.add(number_map[key])
+            elif key in numpad_map:
+                keys.add(numpad_map[key])
             else:
                 try:
-                    keycode = KeyCode[key]
+                    keycode = KeyCode[key.upper()]
                     keys.add(keycode)
                 except KeyError:
-                    print(f"Unknown key: {key}")
+                    pass
+        
         return keys
 
-    def set_activation_keys(self, keys: Set[KeyCode]):
-        """Set the activation keys for the KeyChord."""
-        self.key_chord = KeyChord(keys)
-
     def on_input_event(self, event):
-        """Handle input events and trigger callbacks if the key chord becomes active or inactive."""
-        if not self.key_chord or not self.active_backend:
+        """Handle input events and trigger callbacks if either key chord becomes active or inactive."""
+        if not self.active_backend:
             return
 
         key, event_type = event
 
-        was_active = self.key_chord.is_active()
-        is_active = self.key_chord.update(key, event_type)
+        # Check main activation chord
+        if self.main_key_chord:
+            was_active = self.main_key_chord.is_active()
+            is_active = self.main_key_chord.update(key, event_type)
 
-        if not was_active and is_active:
-            self._trigger_callbacks("on_activate")
-        elif was_active and not is_active:
-            self._trigger_callbacks("on_deactivate")
+            if not was_active and is_active:
+                self._trigger_callbacks("on_activate")
+            elif was_active and not is_active:
+                self._trigger_callbacks("on_deactivate")
+
+        # Check LLM cleanup chord
+        if self.llm_key_chord:
+            was_active_llm = self.llm_key_chord.is_active()
+            is_active_llm = self.llm_key_chord.update(key, event_type)
+
+            if not was_active_llm and is_active_llm:
+                self._trigger_callbacks("on_activate_with_llm")
+            elif was_active_llm and not is_active_llm:
+                self._trigger_callbacks("on_deactivate_with_llm")
+
+        # Check LLM instruction chord
+        if self.llm_instruction_key_chord:
+            was_active_llm_instruction = self.llm_instruction_key_chord.is_active()
+            is_active_llm_instruction = self.llm_instruction_key_chord.update(key, event_type)
+
+            if not was_active_llm_instruction and is_active_llm_instruction:
+                self._trigger_callbacks("on_activate_with_llm_instruction")
+            elif was_active_llm_instruction and not is_active_llm_instruction:
+                self._trigger_callbacks("on_deactivate_with_llm_instruction")
+
+        # Check text selection cleanup chord
+        if self.text_cleanup_chord:
+            was_active_text = self.text_cleanup_chord.is_active()
+            is_active_text = self.text_cleanup_chord.update(key, event_type)
+
+            if not was_active_text and is_active_text:
+                self._trigger_callbacks("on_text_cleanup")
 
     def add_callback(self, event: str, callback: Callable):
         """Add a callback function for a specific event."""
@@ -522,23 +643,83 @@ class EvdevBackend(InputBackend):
         if key_code is not None and event_type is not None:
             self.on_input_event((key_code, event_type))
 
-    def _translate_key_event(self, event) -> tuple[KeyCode | None, InputEvent | None]:
-        """Translate an evdev event to our internal representation."""
-        key_event = self.evdev.categorize(event)
-        if not isinstance(key_event, self.evdev.events.KeyEvent):
-            return None, None
+    def _translate_key_event(self, native_event) -> Optional[tuple[KeyCode, InputEvent]]:
+        """Translate a pynput event to our internal event representation."""
+        # For evdev backend
+        if hasattr(native_event, 'keystate'):
+            key_event = native_event
+            if key_event.keystate in [key_event.key_down, key_event.key_hold]:
+                event_type = InputEvent.KEY_PRESS
+            elif key_event.keystate == key_event.key_up:
+                event_type = InputEvent.KEY_RELEASE
+            else:
+                return None
+            
+            key_code = self.key_map.get(key_event.scancode)
+            if key_code is None:
+                return None
+            
+            return key_code, event_type
 
-        key_code = self.key_map.get(key_event.scancode)
+        # For pynput backend
+        pynput_key, is_press = native_event
+        
+        # Handle character keys
+        if isinstance(pynput_key, self.keyboard.KeyCode):
+            # Try to map from virtual key code first
+            if hasattr(pynput_key, 'vk') and pynput_key.vk is not None:
+                vk = pynput_key.vk
+                
+                # Map numpad virtual key codes (96-111)
+                if 96 <= vk <= 111:
+                    numpad_map = {
+                        96: KeyCode.NUMPAD_0,
+                        97: KeyCode.NUMPAD_1,
+                        98: KeyCode.NUMPAD_2,
+                        99: KeyCode.NUMPAD_3,
+                        100: KeyCode.NUMPAD_4,
+                        101: KeyCode.NUMPAD_5,
+                        102: KeyCode.NUMPAD_6,
+                        103: KeyCode.NUMPAD_7,
+                        104: KeyCode.NUMPAD_8,
+                        105: KeyCode.NUMPAD_9,
+                        106: KeyCode.NUMPAD_MULTIPLY,
+                        107: KeyCode.NUMPAD_ADD,
+                        109: KeyCode.NUMPAD_SUBTRACT,
+                        110: KeyCode.NUMPAD_DECIMAL,
+                        111: KeyCode.NUMPAD_DIVIDE
+                    }
+                    if vk in numpad_map:
+                        key_code = numpad_map[vk]
+                        event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                        return key_code, event_type
+                
+                # Try mapping from key_map
+                mapped_key = self.key_map.get(self.keyboard.KeyCode.from_vk(vk))
+                if mapped_key:
+                    event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                    return mapped_key, event_type
+                
+                # Map number virtual key codes (48-57 are 0-9)
+                if 48 <= vk <= 57:
+                    number_map = {
+                        48: 'ZERO', 49: 'ONE', 50: 'TWO', 51: 'THREE', 52: 'FOUR',
+                        53: 'FIVE', 54: 'SIX', 55: 'SEVEN', 56: 'EIGHT', 57: 'NINE'
+                    }
+                    try:
+                        key_code = KeyCode[number_map[vk]]
+                        event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                        return key_code, event_type
+                    except KeyError:
+                        pass
+        
+        # Fall back to regular key mapping
+        key_code = self.key_map.get(pynput_key)
+        
         if key_code is None:
-            return None, None
-
-        if key_event.keystate in [key_event.key_down, key_event.key_hold]:
-            event_type = InputEvent.KEY_PRESS
-        elif key_event.keystate == key_event.key_up:
-            event_type = InputEvent.KEY_RELEASE
-        else:
-            return None, None
-
+            return None
+        
+        event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
         return key_code, event_type
 
     def _create_key_map(self):
@@ -788,31 +969,117 @@ class PynputBackend(InputBackend):
             self.mouse_listener.stop()
             self.mouse_listener = None
 
-    def _translate_key_event(self, native_event) -> tuple[KeyCode, InputEvent]:
+    def _translate_key_event(self, native_event) -> Optional[tuple[KeyCode, InputEvent]]:
         """Translate a pynput event to our internal event representation."""
+        # For evdev backend
+        if hasattr(native_event, 'keystate'):
+            key_event = native_event
+            if key_event.keystate in [key_event.key_down, key_event.key_hold]:
+                event_type = InputEvent.KEY_PRESS
+            elif key_event.keystate == key_event.key_up:
+                event_type = InputEvent.KEY_RELEASE
+            else:
+                return None
+            
+            key_code = self.key_map.get(key_event.scancode)
+            if key_code is None:
+                return None
+            
+            return key_code, event_type
+
+        # For pynput backend
         pynput_key, is_press = native_event
-        key_code = self.key_map.get(pynput_key, KeyCode.SPACE)
+        
+        # Handle character keys
+        if isinstance(pynput_key, self.keyboard.KeyCode):
+            # Try to map from virtual key code first
+            if hasattr(pynput_key, 'vk') and pynput_key.vk is not None:
+                vk = pynput_key.vk
+                
+                # Map numpad virtual key codes (96-111)
+                if 96 <= vk <= 111:
+                    numpad_map = {
+                        96: KeyCode.NUMPAD_0,
+                        97: KeyCode.NUMPAD_1,
+                        98: KeyCode.NUMPAD_2,
+                        99: KeyCode.NUMPAD_3,
+                        100: KeyCode.NUMPAD_4,
+                        101: KeyCode.NUMPAD_5,
+                        102: KeyCode.NUMPAD_6,
+                        103: KeyCode.NUMPAD_7,
+                        104: KeyCode.NUMPAD_8,
+                        105: KeyCode.NUMPAD_9,
+                        106: KeyCode.NUMPAD_MULTIPLY,
+                        107: KeyCode.NUMPAD_ADD,
+                        109: KeyCode.NUMPAD_SUBTRACT,
+                        110: KeyCode.NUMPAD_DECIMAL,
+                        111: KeyCode.NUMPAD_DIVIDE
+                    }
+                    if vk in numpad_map:
+                        key_code = numpad_map[vk]
+                        event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                        return key_code, event_type
+                
+                # Try mapping from key_map
+                mapped_key = self.key_map.get(self.keyboard.KeyCode.from_vk(vk))
+                if mapped_key:
+                    event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                    return mapped_key, event_type
+                
+                # Map number virtual key codes (48-57 are 0-9)
+                if 48 <= vk <= 57:
+                    number_map = {
+                        48: 'ZERO', 49: 'ONE', 50: 'TWO', 51: 'THREE', 52: 'FOUR',
+                        53: 'FIVE', 54: 'SIX', 55: 'SEVEN', 56: 'EIGHT', 57: 'NINE'
+                    }
+                    try:
+                        key_code = KeyCode[number_map[vk]]
+                        event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
+                        return key_code, event_type
+                    except KeyError:
+                        pass
+        
+        # Fall back to regular key mapping
+        key_code = self.key_map.get(pynput_key)
+        
+        if key_code is None:
+            return None
+        
         event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
         return key_code, event_type
 
     def _on_keyboard_press(self, key):
         """Handle keyboard press events."""
         translated_event = self._translate_key_event((key, True))
-        self.on_input_event(translated_event)
+        if translated_event:
+            # Only log if this key wasn't already pressed
+            if not hasattr(self, '_pressed_keys'):
+                self._pressed_keys = set()
+            if translated_event[0] not in self._pressed_keys:
+                # print(f"Press event: {translated_event}")
+                self._pressed_keys.add(translated_event[0])
+            self.on_input_event(translated_event)
 
     def _on_keyboard_release(self, key):
         """Handle keyboard release events."""
         translated_event = self._translate_key_event((key, False))
-        self.on_input_event(translated_event)
+        if translated_event:
+            if not hasattr(self, '_pressed_keys'):
+                self._pressed_keys = set()
+            if translated_event[0] in self._pressed_keys:
+                # print(f"Release event: {translated_event}")
+                self._pressed_keys.discard(translated_event[0])
+            self.on_input_event(translated_event)
 
     def _on_mouse_click(self, x, y, button, pressed):
         """Handle mouse click events."""
         translated_event = self._translate_key_event((button, pressed))
-        self.on_input_event(translated_event)
+        if translated_event:
+            self.on_input_event(translated_event)
 
     def _create_key_map(self):
         """Create a mapping from pynput keys to our internal KeyCode enum."""
-        return {
+        key_map = {
             # Modifier keys
             self.keyboard.Key.ctrl_l: KeyCode.CTRL_LEFT,
             self.keyboard.Key.ctrl_r: KeyCode.CTRL_RIGHT,
@@ -820,6 +1087,7 @@ class PynputBackend(InputBackend):
             self.keyboard.Key.shift_r: KeyCode.SHIFT_RIGHT,
             self.keyboard.Key.alt_l: KeyCode.ALT_LEFT,
             self.keyboard.Key.alt_r: KeyCode.ALT_RIGHT,
+            self.keyboard.Key.alt_gr: KeyCode.ALT_RIGHT,
             self.keyboard.Key.cmd_l: KeyCode.META_LEFT,
             self.keyboard.Key.cmd_r: KeyCode.META_RIGHT,
 
@@ -921,11 +1189,11 @@ class PynputBackend(InputBackend):
             self.keyboard.KeyCode.from_vk(103): KeyCode.NUMPAD_7,
             self.keyboard.KeyCode.from_vk(104): KeyCode.NUMPAD_8,
             self.keyboard.KeyCode.from_vk(105): KeyCode.NUMPAD_9,
+            self.keyboard.KeyCode.from_vk(106): KeyCode.NUMPAD_MULTIPLY,
             self.keyboard.KeyCode.from_vk(107): KeyCode.NUMPAD_ADD,
             self.keyboard.KeyCode.from_vk(109): KeyCode.NUMPAD_SUBTRACT,
-            self.keyboard.KeyCode.from_vk(106): KeyCode.NUMPAD_MULTIPLY,
-            self.keyboard.KeyCode.from_vk(111): KeyCode.NUMPAD_DIVIDE,
             self.keyboard.KeyCode.from_vk(110): KeyCode.NUMPAD_DECIMAL,
+            self.keyboard.KeyCode.from_vk(111): KeyCode.NUMPAD_DIVIDE,
 
             # Additional special characters
             self.keyboard.KeyCode.from_char('-'): KeyCode.MINUS,
@@ -953,6 +1221,20 @@ class PynputBackend(InputBackend):
             self.mouse.Button.right: KeyCode.MOUSE_RIGHT,
             self.mouse.Button.middle: KeyCode.MOUSE_MIDDLE,
         }
+        
+        # Add uppercase letter mappings
+        key_map.update({
+            self.keyboard.KeyCode.from_char(c.upper()): getattr(KeyCode, c.upper())
+            for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        })
+        
+        # Add existing lowercase mappings
+        key_map.update({
+            self.keyboard.KeyCode.from_char(c.lower()): getattr(KeyCode, c)
+            for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        })
+        
+        return key_map
 
     def on_input_event(self, event):
         """

@@ -11,6 +11,7 @@ from threading import Event
 
 from transcription import transcribe
 from utils import ConfigManager
+from media_controller import MediaController
 
 
 class ResultThread(QThread):
@@ -29,21 +30,27 @@ class ResultThread(QThread):
         resultSignal: Emits the transcription result
     """
 
-    statusSignal = pyqtSignal(str)
+    statusSignal = pyqtSignal(str, bool)
     resultSignal = pyqtSignal(str)
 
-    def __init__(self, local_model=None):
+    def __init__(self, local_model=None, use_llm=False):
         """
         Initialize the ResultThread.
 
         :param local_model: Local transcription model (if applicable)
+        :param use_llm: Boolean indicating whether to use LLM mode
         """
         super().__init__()
         self.local_model = local_model
+        self.use_llm = use_llm
         self.is_recording = False
         self.is_running = True
         self.sample_rate = None
         self.mutex = QMutex()
+        self.stop_event = Event()
+        self.media_controller = MediaController()
+        self.last_audio_time = time.time()
+        self.is_transcribing = False  # New flag to track transcription state
 
     def stop_recording(self):
         """Stop the current recording session."""
@@ -56,7 +63,7 @@ class ResultThread(QThread):
         self.mutex.lock()
         self.is_running = False
         self.mutex.unlock()
-        self.statusSignal.emit('idle')
+        self.statusSignal.emit('idle', False)
         self.wait()
 
     def run(self):
@@ -65,22 +72,28 @@ class ResultThread(QThread):
             if not self.is_running:
                 return
 
+            # Only control media if the setting is enabled
+            if ConfigManager.get_config_value('misc', 'pause_media_during_recording'):
+                self.media_controller.pause_media()
+                self.media_controller.was_playing = True
+
             self.mutex.lock()
             self.is_recording = True
             self.mutex.unlock()
 
-            self.statusSignal.emit('recording')
+            self.statusSignal.emit('recording', self.use_llm)
             ConfigManager.console_print('Recording...')
             audio_data = self._record_audio()
 
             if not self.is_running:
                 return
 
-            if audio_data is None:
-                self.statusSignal.emit('idle')
+            if audio_data is None or len(audio_data) == 0:
+                self.statusSignal.emit('idle', self.use_llm)
                 return
 
-            self.statusSignal.emit('transcribing')
+            self.is_transcribing = True  # Set transcribing flag
+            self.statusSignal.emit('transcribing', self.use_llm)
             ConfigManager.console_print('Transcribing...')
 
             # Time the transcription process
@@ -94,15 +107,24 @@ class ResultThread(QThread):
             if not self.is_running:
                 return
 
-            self.statusSignal.emit('idle')
+            self.statusSignal.emit('idle', self.use_llm)
             self.resultSignal.emit(result)
 
+            # Reset transcribing flag and update last_audio_time after successful transcription
+            self.is_transcribing = False
+            self.last_audio_time = time.time()
+
+            # Only resume media if the setting is enabled
+            if ConfigManager.get_config_value('misc', 'pause_media_during_recording'):
+                self.media_controller.resume_media()
+
         except Exception as e:
+            ConfigManager.console_print(f"Error in ResultThread: {str(e)}")
             traceback.print_exc()
-            self.statusSignal.emit('error')
+            self.statusSignal.emit('error', self.use_llm)
             self.resultSignal.emit('')
         finally:
-            self.stop_recording()
+            self.is_transcribing = False  # Ensure flag is reset
 
     def _record_audio(self):
         """
@@ -112,25 +134,24 @@ class ResultThread(QThread):
         """
         recording_options = ConfigManager.get_config_section('recording_options')
         self.sample_rate = recording_options.get('sample_rate') or 16000
-        frame_duration_ms = 30  # 30ms frame duration for WebRTC VAD
+        frame_duration_ms = 30
         frame_size = int(self.sample_rate * (frame_duration_ms / 1000.0))
         silence_duration_ms = recording_options.get('silence_duration') or 900
         silence_frames = int(silence_duration_ms / frame_duration_ms)
+        continuous_timeout = ConfigManager.get_config_value('recording_options', 'continuous_timeout')
+        recording_mode = recording_options.get('recording_mode') or 'continuous'
 
-        # 150ms delay before starting VAD to avoid mistaking the sound of key pressing for voice
         initial_frames_to_skip = int(0.15 * self.sample_rate / frame_size)
 
-        # Create VAD only for recording modes that use it
-        recording_mode = recording_options.get('recording_mode') or 'continuous'
         vad = None
         if recording_mode in ('voice_activity_detection', 'continuous'):
-            vad = webrtcvad.Vad(2)  # VAD aggressiveness: 0 to 3, 3 being the most aggressive
+            vad = webrtcvad.Vad(2)
             speech_detected = False
             silent_frame_count = 0
 
         audio_buffer = deque(maxlen=frame_size)
         recording = []
-
+        last_speech_time = time.time()  # Track when we last heard speech
         data_ready = Event()
 
         def audio_callback(indata, frames, time, status):
@@ -149,25 +170,39 @@ class ResultThread(QThread):
                 if len(audio_buffer) < frame_size:
                     continue
 
-                # Save frame
                 frame = np.array(list(audio_buffer), dtype=np.int16)
                 audio_buffer.clear()
                 recording.extend(frame)
 
-                # Avoid trying to detect voice in initial frames
                 if initial_frames_to_skip > 0:
                     initial_frames_to_skip -= 1
                     continue
 
-                if vad:
-                    if vad.is_speech(frame.tobytes(), self.sample_rate):
-                        silent_frame_count = 0
+                # Check for speech in the current frame
+                if recording_mode == 'voice_activity_detection' or recording_mode == 'continuous':
+                    if vad and vad.is_speech(frame.tobytes(), self.sample_rate):
+                        last_speech_time = time.time()  # Update the last speech time
+                        if recording_mode == 'continuous':
+                            silent_frame_count = 0
                         if not speech_detected:
                             ConfigManager.console_print("Speech detected.")
                             speech_detected = True
                     else:
-                        silent_frame_count += 1
+                        if recording_mode == 'continuous':  
+                            silent_frame_count += 1
 
+                # Check for continuous mode silence timeout
+                if (recording_mode == 'continuous' and 
+                    continuous_timeout > 0 and 
+                    time.time() - last_speech_time > continuous_timeout):
+                    ConfigManager.console_print(f"[DEBUG] No audio detected for {continuous_timeout} seconds. Stopping continuous recording.")
+                    self.is_running = False  # Stop the entire thread
+                    self.is_recording = False  # Stop recording
+                    self.statusSignal.emit('idle', False)  # Update status window
+                    return None  # Return None to skip transcription
+
+                # Check for normal silence detection
+                if recording_mode == 'voice_activity_detection' or recording_mode == 'continuous':
                     if speech_detected and silent_frame_count > silence_frames:
                         break
 
@@ -177,7 +212,6 @@ class ResultThread(QThread):
         ConfigManager.console_print(f'Recording finished. Size: {audio_data.size} samples, Duration: {duration:.2f} seconds')
 
         min_duration_ms = recording_options.get('min_duration') or 100
-
         if (duration * 1000) < min_duration_ms:
             ConfigManager.console_print(f'Discarded due to being too short.')
             return None

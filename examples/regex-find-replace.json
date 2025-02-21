@@ -1,0 +1,18 @@
+[
+    {
+        "type": "regex",
+        "find": "quote,?\\s+(.)(.+?)\\s+end\\s*quote,?",
+        "replace": "\"$1$2\"",
+        "transforms": [
+            {
+                "group": 1,
+                "operations": ["capitalize"]
+            }
+        ]
+    },
+    {
+        "type": "regex",
+        "find": "quote,?\\s+(.+?)\\s+(un)?quote,?",
+        "replace": "\"$1\""
+    }
+]

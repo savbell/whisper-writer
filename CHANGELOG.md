@@ -4,7 +4,58 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [1.1.1] - 2025-02-21
+
+All changes in this release are from [Thomas Frank's](https://github.com/TomFrankly) fork of the project.
+
+### Added
+- Support for newer Whisper models, such as distil-large-v3 and large-v3-turbo
+- Support for Vosk models
+- Support for additional transcription APIs and models:
+  - Deepgram (nova-3, nova-2)
+  - Groq (whisper-large-v3-turbo, distil-whisper-large-v3-en, whisper-large-v3)
+- LLM Cleanup and LLM Instruction modes
+  - Two new activation modes, which will each send the transcript to a chosen LLM provider/model with custom system instructions.
+  - Ideal use: Use one as a "cleanup" mode, and the other as an "instruction" mode.
+  - In addition to system instructions in the settings, you can add a text file and have its content appeneded as additional instructions.
+- LLM model providers
+  - OpenAI (ChatGPT)
+  - Anthropic (Claude)
+  - Google (Gemini)
+  - Groq (all models)
+  - Ollama (local LLM processing - I recommend "airat/karen-the-editor-v2-strict" for cleanup and "llama3.2" for instruction)
+- Text (Clipboard) Cleanup Feature
+  - Another activation key that will send the current clipboard text to a LLM provider/model with custom system instructions.
+  - Ideal use: Use this to clean up text that's already been printed into the current application.
+- Find and Replace Feature
+  - Set a TXT or JSON file where you can set your own custom find and replace values.
+  - Use a TXT file for simple find and replace operations. Each line should have a comma separated find and replace value, e.g. "find,replace".
+  - Use a JSON file to get regex support and the ability to do text transformation on regex capture groups (see examples directory).
+- More graceful degradation for lower-powered computers
+  - If you don't have an NVIDIA GPU or don't want to install CUDA tools, you can use your CPU with smaller models, or use API providers for transcription.
+- Clipboard Input and Threshold
+  - If the transcript contains more characters than the Clipboard Threshold, it will be pasted into the current application. This will replace the default behavior of simulating keyboard input, which can be unreliable.
+- Setting to pause currently playing audio during recording
+
+### Changed
+- Updated Python support to 3.12
+- Updated dependencies
+- Updated sound device property with dropdown, showing available input devices
+- Modernized build system using hatchling
+- Clicking "X" to exit Settings no longer closes the app
+- Increased the default font size in Settings, added scrollable sections for longer tabs
+
+### Fixed
+- Fixed bug that would activate recording when only modifier keys were pressed
+- Fixed bug that didn't allow for non-Space keys to be used when setting hotkeys
+
+### Security
+- Switched to using keyring to store API keys
+- Added an explicit "Continuous API" checkbox in recording settings. Must be checked to use Continuous mode while using any remote API.
+- Added a "Continuous Timeout" setting in recording settings. After this many seconds of silence, continuous mode will automatically deactivate.
+- Set Recording status window to pulse when continuous mode is activated and a remote API is being used.
+
+## [Previous Unreleased Changes by savbell and other contributors]
 ### Added
 - New settings window to configure WhisperWriter.
 - New main window to either start the keyboard listener or open the settings window.

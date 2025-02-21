@@ -3,6 +3,7 @@ import os
 
 class ConfigManager:
     _instance = None
+    _schema = None
 
     def __init__(self):
         """Initialize the ConfigManager instance."""
@@ -17,13 +18,22 @@ class ConfigManager:
             cls._instance.schema = cls._instance.load_config_schema(schema_path)
             cls._instance.config = cls._instance.load_default_config()
             cls._instance.load_user_config()
+            cls.load_env_variables()
 
     @classmethod
     def get_schema(cls):
-        """Get the configuration schema."""
-        if cls._instance is None:
-            raise RuntimeError("ConfigManager not initialized")
-        return cls._instance.schema
+        """Load and return the configuration schema."""
+        if not cls._schema:
+            schema_path = os.path.join(os.path.dirname(__file__), 'config_schema.yaml')
+            try:
+                with open(schema_path, 'r') as f:
+                    cls._schema = yaml.safe_load(f)
+                    # ConfigManager.console_print("Loaded schema:")
+                    # ConfigManager.console_print(f"Model options in schema: {cls._schema['model_options']['local']['model']['options']}")
+            except Exception as e:
+                ConfigManager.console_print(f"Error loading schema: {str(e)}")
+                cls._schema = {}
+        return cls._schema
 
     @classmethod
     def get_config_section(cls, *keys):
@@ -140,3 +150,16 @@ class ConfigManager:
         """Print a message to the console if enabled in the configuration."""
         if cls._instance and cls._instance.config['misc']['print_to_terminal']:
             print(message)
+
+    @classmethod
+    def load_env_variables(cls):
+        """Load environment variables from .env file"""
+        if os.path.exists('.env'):
+            try:
+                with open('.env', 'r') as f:
+                    for line in f:
+                        if '=' in line:
+                            key, value = line.strip().split('=', 1)
+                            os.environ[key] = value.strip('"').strip("'")
+            except Exception as e:
+                print(f"Error loading .env file: {e}")

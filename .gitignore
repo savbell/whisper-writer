@@ -102,10 +102,14 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
-.venv
-env/
-venv/
+.env*/
+.env.*
+*.env
+.venv*/
+env*/
+venv*/
+.venv313
+venv313/
 ENV/
 env.bak/
 venv.bak/
@@ -130,3 +134,9 @@ dmypy.json
 
 # Configuration files
 config.yaml
+
+# Keyring and credentials
+*.keyring
+*.cfg
+*.db
+/keyring/*

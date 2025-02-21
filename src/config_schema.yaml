@@ -22,18 +22,41 @@ model_options:
 
   # Configuration options for the OpenAI API
   api:
+    provider:
+      value: openai
+      type: str
+      description: "The provider to use for transcription. Options include OpenAI and Deepgram."
+      options:
+        - openai
+        - deepgram
+        - groq
     model:
       value: whisper-1
       type: str
-      description: "The model to use for transcription. Currently only 'whisper-1' is available."
-    base_url:
-      value: https://api.openai.com/v1
-      type: str
-      description: "The base URL for the API. Can be changed to use a local API endpoint."
-    api_key:
+      description: "The model to use for transcription. OpenAI only supports whisper-1. Deepgram supports nova-3 and nova-2. Groq supports whisper-large-v3-turbo, distil-whisper-large-v3-en, and whisper-large-v3."
+      options:
+        - whisper-1
+        - nova-3
+        - nova-2
+        - whisper-large-v3-turbo
+        - distil-whisper-large-v3-en
+        - whisper-large-v3
+    openai_transcription_api_key:
       value: null
       type: str
       description: "Your API key for the OpenAI API. Required for non-local API usage."
+    deepgram_transcription_api_key:
+      value: null
+      type: str
+      description: "Your API key for the Deepgram API. Required for non-local API usage."
+    groq_transcription_api_key:
+      value: null
+      type: str
+      description: "Your API key for the Groq API. Required for non-local API usage."
+    base_url:
+      value: https://api.openai.com/v1
+      type: str
+      description: "Used only if OpenAI is the selected provider. The base URL for the API. Can be changed to use a local API endpoint."
 
   # Configuration options for the faster-whisper model
   local:
@@ -48,12 +71,20 @@ model_options:
         - tiny.en
         - small
         - small.en
+        - distil-small.en
         - medium
         - medium.en
+        - distil-medium.en
         - large
+        - turbo
         - large-v1
         - large-v2
+        - distil-large-v2
         - large-v3
+        - large-v3-turbo
+        - distil-large-v3
+        - vosk-model-small-en-us-0.15
+        - vosk-model-en-us-0.22
     device:
       value: auto
       type: str
@@ -90,16 +121,28 @@ recording_options:
     value: ctrl+shift+space
     type: str
     description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
+  llm_cleanup_key:
+    value: null
+    type: str
+    description: "The keyboard shortcut to process the last transcription through LLM cleanup. Separate keys with a '+'."
+  llm_instruction_key:
+    value: null
+    type: str
+    description: "The keyboard shortcut to process the last transcription through LLM with custom instructions. Separate keys with a '+'."
+  text_cleanup_key:
+    value: null
+    type: str
+    description: "The keyboard shortcut to clean up selected text through LLM. Separate keys with a '+'."
   input_backend:
     value: auto
     type: str
-    description: "The input backend to use for detecting key presses. 'auto' will try to use the best available backend."
+    description: "The input backend to use for detecting key presses. 'auto' will try to use the best available backend. If you're on Windows, you should use 'pynput' (Auto should default to this on the back end.)."
     options:
       - auto
       - evdev
       - pynput
   recording_mode:
-    value: continuous
+    value: press_to_toggle
     type: str
     description: "The recording mode to use. Options include continuous (auto-restart recording after pause in speech until activation key is pressed again), voice_activity_detection (stop recording after pause in speech), press_to_toggle (stop recording when activation key is pressed again), hold_to_record (stop recording when activation key is released)."
     options:
@@ -123,6 +166,18 @@ recording_options:
     value: 100
     type: int
     description: "The minimum duration in milliseconds for a recording to be processed. Recordings shorter than this will be discarded."
+  allow_continuous_api:
+    value: false
+    type: bool
+    description: "Allow continuous recording mode when using remote APIs (requires explicit opt-in for safety)"
+  continuous_timeout:
+    value: 10
+    type: int
+    description: "Number of seconds of silence after which continuous recording will automatically stop (0 to disable)"
+ #continuous_absolute_timeout:
+    #value: 0
+    #type: int
+    #description: "Maximum duration (in seconds) for continuous recording before forced stop. Set to 0 to disable this limit."
 
 # Post-processing options for the transcribed text
 post_processing:
@@ -150,6 +205,82 @@ post_processing:
       - pynput
       - ydotool
       - dotool
+  clipboard_threshold:
+    type: int
+    value: 1000
+    description: "Number of characters above which to use clipboard instead of keystrokes. Set to higher values for more keystroke usage, lower for more clipboard usage."
+  find_replace_file:
+    value: ""
+    type: str
+    description: "Path to a text file containing find/replace rules. Each line should be in the format: find_term,replace_term"
+
+# LLM post-processing options
+llm_post_processing:
+  enabled:
+    value: false
+    type: bool
+    description: "Enable post-processing of transcribed text through an LLM API"
+  
+  api_type:
+    value: chatgpt
+    type: str
+    description: "The LLM API to use for post-processing. If Ollama is selected, local LLM processing will be used. Ollama must be installed separately."
+    options:
+      - chatgpt
+      - claude
+      - gemini
+      - groq
+      - ollama
+    
+  claude_api_key:
+    value: null
+    type: str
+    description: "API key for Claude"
+    
+  openai_api_key:
+    value: null
+    type: str
+    description: "API key for OpenAI (ChatGPT)"
+    
+  gemini_api_key:
+    value: null
+    type: str
+    description: "API key for Google Gemini"
+
+  groq_api_key:
+    value: null
+    type: str
+    description: "API key for Groq LLM service"
+
+  cleanup_model:
+    value: "gpt-4o-mini"
+    type: str
+    description: "The model to use for text cleanup."
+
+  instruction_model:
+    value: "gpt-4o-mini"
+    type: str
+    description: "The model to use for instruction mode."
+    
+  system_prompt:
+    value: "You are a helpful assistant that cleans up transcribed text. Fix any grammar, punctuation, or formatting issues while maintaining the original meaning."
+    type: str
+    description: "System prompt that guides the LLM's behavior"
+
+  instruction_system_message:
+    value: "You are an AI assistant. Interpret the user's text as instructions and respond appropriately. Be concise and direct in your responses."
+    type: str
+    description: "System message for instruction mode - this instructs the LLM how to process the text as instructions"
+    
+  temperature:
+    value: 0.3
+    type: float
+    description: "Controls the randomness of the LLM's output. Lower values make the output more focused and deterministic."
+
+  text_cleanup_system_message:
+    value: "You are a helpful assistant that cleans up selected text. Fix any spelling, grammar, or formatting issues while preserving the original meaning."
+    type: str
+    description: "System message for text cleanup mode - this instructs the LLM how to clean up the text"
 
 # Miscellaneous settings
 misc:
@@ -165,3 +296,7 @@ misc:
     value: false
     type: bool
     description: "Set to true to play a noise after the transcription has been typed out."
+  pause_media_during_recording:
+    value: false
+    type: bool
+    description: "Automatically pause/resume media during recording"
