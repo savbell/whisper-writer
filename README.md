@@ -8,6 +8,8 @@
 
 **Update (2024-05-28):** I've just merged in a major rewrite of WhisperWriter! We've migrated from using `tkinter` to using `PyQt5` for the UI, added a new settings window for configuration, a new continuous recording mode, support for a local API, and more! Please be patient as I work out any bugs that may have been introduced in the process. If you encounter any problems, please [open a new issue](https://github.com/savbell/whisper-writer/issues)!
 
+**Update (2024-12-28):** Updated to use the latest versions of OpenAI API (v1.84.0+) and faster-whisper (v1.1.1+) with significant performance improvements and new model options. See [Getting Started](#getting-started) for updated CUDA compatibility requirements.
+
 WhisperWriter is a small speech-to-text app that uses [OpenAI's Whisper model](https://openai.com/research/whisper) to auto-transcribe recordings from a user's microphone to the active window.
 
 Once started, the script runs in the background and waits for a keyboard shortcut to be pressed (`ctrl+shift+space` by default). When the shortcut is pressed, the app starts recording from your microphone. There are four recording modes to choose from:
@@ -28,37 +30,60 @@ The transcription can either be done locally through the [faster-whisper Python 
 Before you can run this app, you'll need to have the following software installed:
 
 - Git: [https://git-scm.com/downloads](https://git-scm.com/downloads)
-- Python `3.11`: [https://www.python.org/downloads/](https://www.python.org/downloads/)
+- Python `3.9+`: [https://www.python.org/downloads/](https://www.python.org/downloads/) (Python 3.11+ recommended)
 
 If you want to run `faster-whisper` on your GPU, you'll also need to install the following NVIDIA libraries:
 
+**For optimal performance (recommended):**
 - [cuBLAS for CUDA 12](https://developer.nvidia.com/cublas)
-- [cuDNN 8 for CUDA 12](https://developer.nvidia.com/cudnn)
+- [cuDNN 9 for CUDA 12](https://developer.nvidia.com/cudnn)
+
+**For systems with older CUDA versions:**
+- [cuBLAS for CUDA 12](https://developer.nvidia.com/cublas) + [cuDNN 8 for CUDA 12](https://developer.nvidia.com/cudnn)
+- [cuBLAS for CUDA 11](https://developer.nvidia.com/cublas) + [cuDNN 8 for CUDA 11](https://developer.nvidia.com/cudnn)
 
 <details>
 <summary>More information on GPU execution</summary>
 
 The below was taken directly from the [`faster-whisper` README](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#gpu):
 
-**Note:** The latest versions of `ctranslate2` support CUDA 12 only. For CUDA 11, the current workaround is downgrading to the `3.24.0` version of `ctranslate2` (This can be done with `pip install --force-reinsall ctranslate2==3.24.0`).
+**Important CUDA Compatibility Notes:**
+
+- **CUDA 12 + cuDNN 9**: Latest versions of `ctranslate2` (default installation)
+- **CUDA 12 + cuDNN 8**: Use `pip install ctranslate2==4.4.0` 
+- **CUDA 11 + cuDNN 8**: Use `pip install ctranslate2==3.24.0`
+
+**After installation, you may need to downgrade CTranslate2 based on your CUDA version:**
+
+```bash
+# For CUDA 12 + cuDNN 8 (if you encounter compatibility issues)
+pip install --force-reinstall ctranslate2==4.4.0
+
+# For CUDA 11 + cuDNN 8 (older systems)
+pip install --force-reinstall ctranslate2==3.24.0
+```
 
 There are multiple ways to install the NVIDIA libraries mentioned above. The recommended way is described in the official NVIDIA documentation, but we also suggest other installation methods below.
 
 #### Use Docker
 
-The libraries (cuBLAS, cuDNN) are installed in these official NVIDIA CUDA Docker images: `nvidia/cuda:12.0.0-runtime-ubuntu20.04` or `nvidia/cuda:12.0.0-runtime-ubuntu22.04`.
+The libraries (cuBLAS, cuDNN) are installed in these official NVIDIA CUDA Docker images: 
+- `nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04` (latest)
+- `nvidia/cuda:12.0.0-runtime-ubuntu20.04` or `nvidia/cuda:12.0.0-runtime-ubuntu22.04` (older)
 
 #### Install with `pip` (Linux only)
 
 On Linux these libraries can be installed with `pip`. Note that `LD_LIBRARY_PATH` must be set before launching Python.
 
 ```bash
-pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+# For CUDA 12 + cuDNN 9 (latest)
+pip install nvidia-cublas-cu12 nvidia-cudnn-cu12==9.*
+
+# For CUDA 12 + cuDNN 8 (if needed for compatibility)
+pip install nvidia-cublas-cu12 nvidia-cudnn-cu12==8.*
 
 export LD_LIBRARY_PATH=`python3 -c 'import os; import nvidia.cublas.lib; import nvidia.cudnn.lib; print(os.path.dirname(nvidia.cublas.lib.__file__) + ":" + os.path.dirname(nvidia.cudnn.lib.__file__))'`
 ```
-
-**Note**: Version 9+ of `nvidia-cudnn-cu12` appears to cause issues due its reliance on cuDNN 9 (Faster-Whisper does not currently support cuDNN 9). Ensure your version of the Python package is for cuDNN 8.
 
 #### Download the libraries from Purfview's repository (Windows & Linux)
 
@@ -94,6 +119,14 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**Important:** If you encounter CUDA-related errors, run the compatibility checker:
+
+```
+python check_cuda_compatibility.py
+```
+
+This script will detect your CUDA version and recommend the appropriate CTranslate2 version for optimal compatibility.
+
 #### 4. Run the Python code:
 
 ```
@@ -124,12 +157,13 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
   - `api_key`: Your API key for the OpenAI API. Required for non-local API usage. (Default: `null`)
 
 - `local`: Configuration options for the local Whisper model.
-  - `model`: The model to use for transcription. The larger models provide better accuracy but are slower. See [available models and languages](https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages). (Default: `base`)
+  - `model`: The model to use for transcription. The larger models provide better accuracy but are slower. See [available models and languages](https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages). New options include `turbo`, `large-v3-turbo`, and distil models for faster performance. (Default: `base`)
   - `device`: The device to run the local Whisper model on. Use `cuda` for NVIDIA GPUs, `cpu` for CPU-only processing, or `auto` to let the system automatically choose the best available device. (Default: `auto`)
-  - `compute_type`: The compute type to use for the local Whisper model. [More information on quantization here](https://opennmt.net/CTranslate2/quantization.html). (Default: `default`)
+  - `compute_type`: The compute type to use for the local Whisper model. [More information on quantization here](https://opennmt.net/CTranslate2/quantization.html). New options include `int8_float16` for GPU and `auto` for automatic selection. (Default: `default`)
   - `condition_on_previous_text`: Set to `true` to use the previously transcribed text as a prompt for the next transcription request. (Default: `true`)
   - `vad_filter`: Set to `true` to use [a voice activity detection (VAD) filter](https://github.com/snakers4/silero-vad) to remove silence from the recording. (Default: `false`)
   - `model_path`: The path to the local Whisper model. If not specified, the default model will be downloaded. (Default: `null`)
+  - `batch_size`: Batch size for faster processing. Values > 1 enable batched inference which can significantly improve speed. Higher values require more memory. (Default: `1`)
 
 #### Recording Options
 - `activation_key`: The keyboard shortcut to activate the recording and transcribing process. Separate keys with a `+`. (Default: `ctrl+shift+space`)

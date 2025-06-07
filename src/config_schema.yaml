@@ -54,6 +54,11 @@ model_options:
         - large-v1
         - large-v2
         - large-v3
+        - large-v3-turbo
+        - turbo
+        - distil-large-v3
+        - distil-medium.en
+        - distil-small.en
     device:
       value: auto
       type: str
@@ -65,12 +70,15 @@ model_options:
     compute_type:
       value: default
       type: str
-      description: "The compute type to use for the local Whisper model."
+      description: "The compute type to use for the local Whisper model. Updated options for better performance."
       options:
         - default
+        - auto
         - float32
         - float16
         - int8
+        - int8_float16
+        - int16
     condition_on_previous_text:
       value: true
       type: bool
@@ -83,6 +91,10 @@ model_options:
       value: null
       type: str
       description: "The path to the local Whisper model. If not specified, the default model will be downloaded."
+    batch_size:
+      value: 1
+      type: int
+      description: "Batch size for faster processing. Higher values can improve speed but require more memory."
 
 # Configuration options for activation and recording
 recording_options:

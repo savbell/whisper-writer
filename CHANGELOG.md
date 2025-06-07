@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### Added
+- Support for new faster-whisper models: `turbo`, `large-v3-turbo`, and distil models for improved performance.
+- Batched inference support for significantly faster transcription when `batch_size > 1`.
+- Enhanced error handling for API and local transcription failures.
+- New compute types: `int8_float16`, `int16`, and `auto` for better performance optimization.
+- Comprehensive CUDA compatibility documentation for different CUDA/cuDNN versions.
+
+### Changed
+- Updated OpenAI library to v1.84.0+ with latest API features and improvements.
+- Updated faster-whisper to v1.1.1+ with performance enhancements and new models.
+- Updated CTranslate2 with flexible version constraints for CUDA compatibility.
+- Enhanced transcription code to use BatchedInferencePipeline for better performance.
+- Improved error handling and fallback mechanisms for both API and local transcription.
+
+### Fixed
+- CUDA compatibility issues with different CUDA/cuDNN version combinations.
+- Enhanced transcription stability with better error recovery.
+
+## [Previous Releases]
+### Added
 - New settings window to configure WhisperWriter.
 - New main window to either start the keyboard listener or open the settings window.
 - New continuous recording mode ([Issue #40](https://github.com/savbell/whisper-writer/issues/40)).
