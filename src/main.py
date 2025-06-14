@@ -12,6 +12,7 @@ from result_thread import ResultThread
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
+from ui.transcription_result_dialog import TranscriptionResultDialog
 from transcription import create_local_model
 from input_simulation import InputSimulator
 from utils import ConfigManager
@@ -59,10 +60,20 @@ class WhisperWriterApp(QObject):
         self.main_window.startListening.connect(self.key_listener.start)
         self.main_window.closeApp.connect(self.exit_app)
 
+        # Initialize the transcription result dialog
+        self.transcription_result_dialog = TranscriptionResultDialog()
+
         if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.status_window = StatusWindow()
 
         self.create_tray_icon()
+
+        # Start listening for the activation hotkey immediately
+        try:
+            self.key_listener.start()
+        except Exception as e:
+            print(f"Failed to start key listener automatically: {e}")
+
         self.main_window.show()
 
     def create_tray_icon(self):
@@ -164,9 +175,19 @@ class WhisperWriterApp(QObject):
 
     def on_transcription_complete(self, result):
         """
-        When the transcription is complete, type the result and start listening for the activation key again.
+        When transcription is complete, always try typing first, then show notification as backup.
         """
+        # Copy to clipboard if enabled
+        if ConfigManager.get_config_value('post_processing', 'auto_copy_to_clipboard'):
+            clipboard = QApplication.clipboard()
+            clipboard.setText(result)
+        
+        # Always try to type the text first
         self.input_simulator.typewrite(result)
+        
+        # Show the notification popup as a backup
+        # This gives users a way to copy the text if typing didn't work as expected
+        self.transcription_result_dialog.show_transcription_result(result)
 
         if ConfigManager.get_config_value('misc', 'noise_on_completion'):
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)

@@ -285,6 +285,8 @@ class KeyListener:
             "on_activate": [],
             "on_deactivate": []
         }
+        # Track whether the listener is already running to avoid duplicates
+        self._running = False
         self.load_activation_keys()
         self.initialize_backends()
         self.select_backend_from_config()
@@ -341,15 +343,20 @@ class KeyListener:
 
     def start(self):
         """Start the active backend."""
+        if self._running:
+            return  # Already running
+
         if self.active_backend:
             self.active_backend.start()
+            self._running = True
         else:
             raise RuntimeError("No active backend selected")
 
     def stop(self):
         """Stop the active backend."""
-        if self.active_backend:
+        if self.active_backend and self._running:
             self.active_backend.stop()
+            self._running = False
 
     def load_activation_keys(self):
         """Load activation keys from configuration."""
@@ -791,7 +798,31 @@ class PynputBackend(InputBackend):
     def _translate_key_event(self, native_event) -> tuple[KeyCode, InputEvent]:
         """Translate a pynput event to our internal event representation."""
         pynput_key, is_press = native_event
-        key_code = self.key_map.get(pynput_key, KeyCode.SPACE)
+        # First try direct lookup in our key map
+        key_code = self.key_map.get(pynput_key)
+
+        # Fallback: if it's a KeyCode (printable) with a virtual-key matching A-Z, map via VK
+        if key_code is None and isinstance(pynput_key, self.keyboard.KeyCode):
+            vk = pynput_key.vk or 0
+            # ASCII A..Z is 65-90, a..z 97-122 – Windows typically reports uppercase 65-90
+            if 65 <= vk <= 90:
+                # Convert to corresponding enum by position
+                letter_enum = KeyCode(chr(vk).upper()) if False else None  # placeholder for Enum lookup
+                # Map VK to our custom KeyCode enum dynamically
+                vk_to_enum = {
+                    65: KeyCode.A, 66: KeyCode.B, 67: KeyCode.C, 68: KeyCode.D, 69: KeyCode.E,
+                    70: KeyCode.F, 71: KeyCode.G, 72: KeyCode.H, 73: KeyCode.I, 74: KeyCode.J,
+                    75: KeyCode.K, 76: KeyCode.L, 77: KeyCode.M, 78: KeyCode.N, 79: KeyCode.O,
+                    80: KeyCode.P, 81: KeyCode.Q, 82: KeyCode.R, 83: KeyCode.S, 84: KeyCode.T,
+                    85: KeyCode.U, 86: KeyCode.V, 87: KeyCode.W, 88: KeyCode.X, 89: KeyCode.Y, 90: KeyCode.Z,
+                }
+                key_code = vk_to_enum.get(vk)
+
+            # Numpad and digits: handle 48-57 for top row if desired later
+
+        # Default to SPACE if still unknown to avoid None issues
+        if key_code is None:
+            key_code = KeyCode.SPACE
         event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
         return key_code, event_type
 
@@ -816,12 +847,19 @@ class PynputBackend(InputBackend):
             # Modifier keys
             self.keyboard.Key.ctrl_l: KeyCode.CTRL_LEFT,
             self.keyboard.Key.ctrl_r: KeyCode.CTRL_RIGHT,
+            # Generic modifier constants (pynput sometimes emits these instead of side-specific variants)
+            getattr(self.keyboard.Key, "ctrl", self.keyboard.Key.ctrl_l): KeyCode.CTRL_LEFT,
             self.keyboard.Key.shift_l: KeyCode.SHIFT_LEFT,
             self.keyboard.Key.shift_r: KeyCode.SHIFT_RIGHT,
+            getattr(self.keyboard.Key, "shift", self.keyboard.Key.shift_l): KeyCode.SHIFT_LEFT,
             self.keyboard.Key.alt_l: KeyCode.ALT_LEFT,
             self.keyboard.Key.alt_r: KeyCode.ALT_RIGHT,
+            getattr(self.keyboard.Key, "alt", self.keyboard.Key.alt_l): KeyCode.ALT_LEFT,
+            # Right-Alt / AltGr support
+            getattr(self.keyboard.Key, "alt_gr", self.keyboard.Key.alt_r): KeyCode.ALT_RIGHT,
             self.keyboard.Key.cmd_l: KeyCode.META_LEFT,
             self.keyboard.Key.cmd_r: KeyCode.META_RIGHT,
+            getattr(self.keyboard.Key, "cmd", self.keyboard.Key.cmd_l): KeyCode.META_LEFT,
 
             # Function keys
             self.keyboard.Key.f1: KeyCode.F1,

@@ -130,6 +130,10 @@ post_processing:
     value: 0.005
     type: float
     description: "The delay in seconds between each key press when writing the transcribed text."
+  auto_copy_to_clipboard:
+    value: true
+    type: bool
+    description: "Set to true to automatically copy transcribed text to the clipboard."
   remove_trailing_period:
     value: false
     type: bool
