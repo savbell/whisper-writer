@@ -17,7 +17,7 @@ from input_simulation import InputSimulator
 from utils import ConfigManager
 
 
-class WhisperWriterApp(QObject):
+class WhisperWitApp(QObject):
     def __init__(self):
         """
         Initialize the application, opening settings window if no configuration file is found.
@@ -59,6 +59,17 @@ class WhisperWriterApp(QObject):
         self.main_window.startListening.connect(self.key_listener.start)
         self.main_window.closeApp.connect(self.exit_app)
 
+        # Initialize metrics with current values
+        from cost_tracker import CostTracker
+        cost_tracker = CostTracker()
+        summary = cost_tracker.get_usage_summary()
+        if summary:
+            whisper_duration = summary['whisper_usage']['total_duration_seconds']
+            gpt_tokens = (summary['gpt_usage']['total_input_tokens'] +
+                         summary['gpt_usage']['total_output_tokens'])
+            total_cost = summary['total_cost']
+            self.main_window.update_metrics(whisper_duration, gpt_tokens, total_cost)
+
         if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.status_window = StatusWindow()
 
@@ -73,15 +84,15 @@ class WhisperWriterApp(QObject):
 
         tray_menu = QMenu()
 
-        show_action = QAction('WhisperWriter Main Menu', self.app)
+        show_action = QAction('WhisperWit', self.app)
         show_action.triggered.connect(self.main_window.show)
         tray_menu.addAction(show_action)
 
-        settings_action = QAction('Open Settings', self.app)
+        settings_action = QAction('Settings', self.app)
         settings_action.triggered.connect(self.settings_window.show)
         tray_menu.addAction(settings_action)
 
-        exit_action = QAction('Exit', self.app)
+        exit_action = QAction('Quit WhisperWit', self.app)
         exit_action.triggered.connect(self.exit_app)
         tray_menu.addAction(exit_action)
 
@@ -148,11 +159,14 @@ class WhisperWriterApp(QObject):
         if self.result_thread and self.result_thread.isRunning():
             return
 
-        self.result_thread = ResultThread(self.local_model)
+        self.result_thread = ResultThread(self.local_model, self.main_window)
         if not ConfigManager.get_config_value('misc', 'hide_status_window'):
             self.result_thread.statusSignal.connect(self.status_window.updateStatus)
             self.status_window.closeSignal.connect(self.stop_result_thread)
         self.result_thread.resultSignal.connect(self.on_transcription_complete)
+        self.result_thread.metricsUpdated.connect(self.main_window.update_metrics)
+        self.result_thread.wordSignal.connect(self.main_window.add_word)
+        self.main_window.word_display.clear()  # Clear previous words
         self.result_thread.start()
 
     def stop_result_thread(self):
@@ -184,5 +198,5 @@ class WhisperWriterApp(QObject):
 
 
 if __name__ == '__main__':
-    app = WhisperWriterApp()
+    app = WhisperWitApp()
     app.run()

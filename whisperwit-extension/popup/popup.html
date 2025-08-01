@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>WhisperWit</title>
+</head>
+<body>
+  <div class="container">
+    <h1>WhisperWit</h1>
+    
+    <div class="record-section">
+      <button id="recordButton" class="record-button">
+        Record
+      </button>
+      <div id="status" class="status">Enter API key in settings to start</div>
+    </div>
+
+    <div class="settings-section">
+      <select id="language" class="input">
+        <option value="en">English</option>
+        <option value="da">Danish</option>
+      </select>
+      
+      <input 
+        type="password" 
+        id="apiKey" 
+        class="input" 
+        placeholder="OpenAI API Key"
+      >
+    </div>
+
+    <div class="footer">
+      <button id="saveSettings" class="save-button">Save Settings</button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

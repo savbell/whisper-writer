@@ -2,7 +2,7 @@ import subprocess
 import os
 import signal
 import time
-from pynput.keyboard import Controller as PynputController
+from pynput.keyboard import Controller as PynputController, Key
 
 from utils import ConfigManager
 
@@ -68,16 +68,36 @@ class InputSimulator:
 
     def _typewrite_pynput(self, text, interval):
         """
-        Simulate typing using pynput.
+        Simulate typing using pynput with improved reliability.
 
         Args:
             text (str): The text to type.
             interval (float): The interval between keystrokes in seconds.
         """
+        # Small delay before starting to type
+        time.sleep(0.2)
+
+        # Instead of clearing existing text, just insert at current position
         for char in text:
-            self.keyboard.press(char)
-            self.keyboard.release(char)
-            time.sleep(interval)
+            try:
+                # Handle special characters
+                if char in ['æ', 'ø', 'å', 'Æ', 'Ø', 'Å']:
+                    # For Danish characters, use direct Unicode input
+                    self.keyboard.type(char)
+                elif char.isupper():
+                    with self.keyboard.pressed(Key.shift):
+                        self.keyboard.type(char.lower())
+                else:
+                    self.keyboard.type(char)
+                
+                # Add a small delay after each character
+                time.sleep(interval)
+            except Exception as e:
+                print(f"Error typing character '{char}': {e}")
+                continue
+
+        # Add a small delay after finishing
+        time.sleep(0.1)
 
     def _typewrite_ydotool(self, text, interval):
         """
