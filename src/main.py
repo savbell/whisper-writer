@@ -1,8 +1,6 @@
 import os
 import sys
-import time
 from audioplayer import AudioPlayer
-from pynput.keyboard import Controller
 from PyQt5.QtCore import QObject, QProcess
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox

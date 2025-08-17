@@ -32,6 +32,7 @@ class InputSimulator:
         self.dotool_process = None
 
         if self.input_method == 'pynput':
+            from pynput.keyboard import Controller as PynputController
             self.keyboard = PynputController()
         elif self.input_method == 'dotool':
             self._initialize_dotool()

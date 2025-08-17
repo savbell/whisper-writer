@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whisper-writer"
+version = "1.17.0"
+description = "Application de bureau pour transcrire l'audio en texte via Whisper et le taper automatiquement."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT License" }
+authors = [
+  { name = "Sav Bell", email = "sav@savbell.com" },
+]
+
+# Dépendances de premier niveau (directement utilisées par le projet)
+dependencies = [
+    "PyYAML==6.0.1",
+    "numpy==1.24.3",
+    "soundfile==0.12.1",
+    "faster-whisper==1.0.2",
+    "openai==1.28.0",
+    "sounddevice==0.4.6",
+    "webrtcvad-wheels==2.0.11.post1",
+    "PyQt5==5.15.10",
+    "PyQt5-Qt5==5.15.2",
+    "PyQt5-sip==12.13.0",
+    "audioplayer==0.6",
+    "pynput==1.7.6",
+    "python-dotenv==1.0.0",
+    "PyGObject",
+]
+
+[project.gui-scripts]
+whisper-writer = "src.main:main"

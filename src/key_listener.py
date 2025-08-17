@@ -2,6 +2,12 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Callable, Set
 
+try:
+    from PyQt5.QtCore import QThread, pyqtSignal
+except ImportError:
+    QThread = object
+    pyqtSignal = object
+
 from utils import ConfigManager
 
 
@@ -412,6 +418,45 @@ class KeyListener:
         """Update activation keys from the current configuration."""
         self.load_activation_keys()
 
+class EvdevListenerThread(QThread):
+    event_received = pyqtSignal(object)
+
+    def __init__(self, devices, stop_event, evdev_module):
+        super().__init__()
+        self.devices = devices
+        self.stop_event = stop_event
+        self.evdev = evdev_module
+
+    def run(self):
+        import select
+        while not self.stop_event.is_set():
+            try:
+                r, _, _ = select.select(self.devices, [], [], 0.1)
+                for device in r:
+                    self._read_device_events(device)
+            except Exception as e:
+                if self.stop_event.is_set():
+                    break
+                print(f"Unexpected error in _listen_loop: {e}")
+
+    def _read_device_events(self, device):
+        try:
+            for event in device.read():
+                if event.type == self.evdev.ecodes.EV_KEY:
+                    self.event_received.emit(event)
+        except Exception as e:
+            self._handle_device_error(device, e)
+
+    def _handle_device_error(self, device, error):
+        import errno
+        if isinstance(error, BlockingIOError) and error.errno == errno.EAGAIN:
+            return
+        if isinstance(error, OSError) and (error.errno == errno.EBADF or error.errno == errno.ENODEV):
+            print(f"Device {device.path} is no longer available. Removing it.")
+            self.devices.remove(device)
+        else:
+            print(f"Unexpected error reading device: {error}")
+
 class EvdevBackend(InputBackend):
     """
     Backend for handling input events using the evdev library.
@@ -431,7 +476,7 @@ class EvdevBackend(InputBackend):
         self.devices: List[evdev.InputDevice] = []
         self.key_map: Optional[dict] = None
         self.evdev = None
-        self.thread: Optional[threading.Thread] = None
+        self.thread: Optional[EvdevListenerThread] = None
         self.stop_event: Optional[threading.Event] = None
 
     def start(self):
@@ -445,7 +490,10 @@ class EvdevBackend(InputBackend):
         self.devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
         self.stop_event = threading.Event()
         self._setup_signal_handler()
-        self._start_listening()
+        
+        self.thread = EvdevListenerThread(self.devices, self.stop_event, self.evdev)
+        self.thread.event_received.connect(self._handle_input_event)
+        self.thread.start()
 
     def _setup_signal_handler(self):
         """Set up signal handlers for graceful shutdown."""
@@ -464,9 +512,8 @@ class EvdevBackend(InputBackend):
             self.stop_event.set()
 
         if self.thread:
-            self.thread.join(timeout=1)  # Wait for up to 1 second
-            if self.thread.is_alive():
-                print("Thread did not terminate in time. Forcing exit.")
+            self.thread.quit()
+            self.thread.wait()
 
         # Close all devices
         for device in self.devices:
@@ -476,48 +523,8 @@ class EvdevBackend(InputBackend):
                 pass  # Ignore errors when closing devices
         self.devices = []
 
-    def _start_listening(self):
-        """Start the listening thread."""
-        import threading
-        self.thread = threading.Thread(target=self._listen_loop)
-        self.thread.start()
-
-    def _listen_loop(self):
-        """Main loop for listening to input events."""
-        import select
-        while not self.stop_event.is_set():
-            try:
-                # Wait for input events with a timeout of 0.1 seconds
-                r, _, _ = select.select(self.devices, [], [], 0.1)
-                for device in r:
-                    self._read_device_events(device)
-            except Exception as e:
-                if self.stop_event.is_set():
-                    break
-                print(f"Unexpected error in _listen_loop: {e}")
-
-    def _read_device_events(self, device):
-        """Read and process events from a single device."""
-        try:
-            for event in device.read():
-                if event.type == self.evdev.ecodes.EV_KEY:
-                    self._handle_input_event(event)
-        except Exception as e:
-            self._handle_device_error(device, e)
-
-    def _handle_device_error(self, device, error):
-        """Handle errors that occur when reading from a device."""
-        import errno
-        if isinstance(error, BlockingIOError) and error.errno == errno.EAGAIN:
-            return  # Non-blocking IO is expected, just continue
-        if isinstance(error, OSError) and (error.errno == errno.EBADF or error.errno == errno.ENODEV):
-            print(f"Device {device.path} is no longer available. Removing it.")
-            self.devices.remove(device)
-        else:
-            print(f"Unexpected error reading device: {error}")
-
     def _handle_input_event(self, event):
-        """Process a single input event."""
+        """Process a single input event from the listener thread."""
         key_code, event_type = self._translate_key_event(event)
         if key_code is not None and event_type is not None:
             self.on_input_event((key_code, event_type))
