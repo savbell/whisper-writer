@@ -1,10 +1,19 @@
 import subprocess
 import os
 import signal
+import sys
 import time
-from pynput.keyboard import Controller as PynputController
+from typing import Optional
+
+from pynput.keyboard import Controller as PynputController, Key as PynputKey
+
+try:
+    import pyperclip
+except ImportError:  # pragma: no cover - pyperclip is an optional runtime dependency
+    pyperclip = None
 
 from utils import ConfigManager
+
 
 def run_command_or_exit_on_failure(command):
     """
@@ -19,6 +28,7 @@ def run_command_or_exit_on_failure(command):
         print(f"Error running command: {e}")
         exit(1)
 
+
 class InputSimulator:
     """
     A class to simulate keyboard input using various methods.
@@ -30,8 +40,9 @@ class InputSimulator:
         """
         self.input_method = ConfigManager.get_config_value('post_processing', 'input_method')
         self.dotool_process = None
+        self.keyboard: Optional[PynputController] = None
 
-        if self.input_method == 'pynput':
+        if self.input_method in ('pynput', 'clipboard'):
             self.keyboard = PynputController()
         elif self.input_method == 'dotool':
             self._initialize_dotool()
@@ -58,9 +69,11 @@ class InputSimulator:
         Args:
             text (str): The text to type.
         """
-        interval = ConfigManager.get_config_value('post_processing', 'writing_key_press_delay')
+        interval = ConfigManager.get_config_value('post_processing', 'writing_key_press_delay') or 0.0
         if self.input_method == 'pynput':
             self._typewrite_pynput(text, interval)
+        elif self.input_method == 'clipboard':
+            self._typewrite_clipboard(text, interval)
         elif self.input_method == 'ydotool':
             self._typewrite_ydotool(text, interval)
         elif self.input_method == 'dotool':
@@ -74,10 +87,58 @@ class InputSimulator:
             text (str): The text to type.
             interval (float): The interval between keystrokes in seconds.
         """
+        if not self.keyboard:
+            self.keyboard = PynputController()
+
         for char in text:
             self.keyboard.press(char)
             self.keyboard.release(char)
             time.sleep(interval)
+
+    def _typewrite_clipboard(self, text, interval):
+        """
+        Paste text via the system clipboard, falling back to simulated typing on failure.
+        """
+        if not self.keyboard:
+            self.keyboard = PynputController()
+
+        minimal_delay = max(interval, 0.02)
+        modifier_key = self._clipboard_modifier_key()
+
+        if pyperclip is None:
+            self._typewrite_pynput(text, interval)
+            return
+
+        try:
+            previous_clipboard = pyperclip.paste()
+        except pyperclip.PyperclipException as exc:
+            previous_clipboard = None
+
+        try:
+            pyperclip.copy(text)
+        except pyperclip.PyperclipException as exc:
+            self._typewrite_pynput(text, interval)
+            return
+
+        time.sleep(minimal_delay)
+
+        with self.keyboard.pressed(modifier_key):
+            self.keyboard.press('v')
+            self.keyboard.release('v')
+
+        time.sleep(minimal_delay)
+
+        if previous_clipboard is not None and previous_clipboard != text:
+            try:
+                pyperclip.copy(previous_clipboard)
+            except pyperclip.PyperclipException as exc:
+                pass
+
+    def _clipboard_modifier_key(self):
+        """Return the correct modifier key for paste on the current platform."""
+        if sys.platform == 'darwin':
+            return PynputKey.cmd
+        return PynputKey.ctrl
 
     def _typewrite_ydotool(self, text, interval):
         """

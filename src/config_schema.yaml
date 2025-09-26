@@ -145,9 +145,10 @@ post_processing:
   input_method:
     value: pynput
     type: str
-    description: "The method to use for simulating keyboard input."
+    description: "How Whisper-Writer delivers text to other applications. Choose between simulated typing and clipboard-based pasting."
     options:
       - pynput
+      - clipboard
       - ydotool
       - dotool
 

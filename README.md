@@ -145,7 +145,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `remove_trailing_period`: Set to `true` to remove the trailing period from the transcribed text. (Default: `false`)
 - `add_trailing_space`: Set to `true` to add a space to the end of the transcribed text. (Default: `true`)
 - `remove_capitalization`: Set to `true` to convert the transcribed text to lowercase. (Default: `false`)
-- `input_method`: The method to use for simulating keyboard input. (Default: `pynput`)
+- `input_method`: Choose how Whisper-Writer enters text (`pynput` for simulated typing, `clipboard` to copy/paste, `ydotool`/`dotool` on Linux). (Default: `pynput`)
 
 #### Miscellaneous Options
 - `print_to_terminal`: Set to `true` to print the script status and transcribed text to the terminal. (Default: `true`)
