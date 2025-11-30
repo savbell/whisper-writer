@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WhisperWriter.UI.ViewModels"
+        x:Class="WhisperWriter.UI.Views.StatusWindow"
+        x:DataType="vm:StatusViewModel"
+        Title="WhisperWriter Status"
+        Width="200"
+        Height="80"
+        WindowStartupLocation="Manual"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        CanResize="False"
+        Topmost="True"
+        ShowInTaskbar="False">
+
+    <Design.DataContext>
+        <vm:StatusViewModel/>
+    </Design.DataContext>
+
+    <Border Background="#CC333333"
+            CornerRadius="10"
+            Padding="15,10"
+            IsVisible="{Binding IsVisible}">
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+
+            <!-- Status Indicator -->
+            <Ellipse Width="12" Height="12"
+                     Margin="0,0,10,0"
+                     VerticalAlignment="Center">
+                <Ellipse.Fill>
+                    <MultiBinding>
+                        <MultiBinding.Converter>
+                            <x:Static Member="x:Static"/>
+                        </MultiBinding.Converter>
+                    </MultiBinding>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <!-- Status Text -->
+            <TextBlock Text="{Binding StatusText}"
+                       Foreground="White"
+                       FontSize="14"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,232 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WhisperWriter.UI.ViewModels"
+        x:Class="WhisperWriter.UI.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="WhisperWriter Settings"
+        Width="600"
+        Height="700"
+        WindowStartupLocation="CenterOwner">
+
+    <Design.DataContext>
+        <vm:SettingsViewModel/>
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="TextBlock.section-header">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,15,0,10"/>
+        </Style>
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+        <Style Selector="TextBox, ComboBox, NumericUpDown">
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="MinWidth" Value="200"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Margin" Value="0,5"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <TabControl Grid.Row="0" Margin="10">
+
+            <!-- Model Tab -->
+            <TabItem Header="Model">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <CheckBox Content="Use API (OpenAI Whisper)"
+                                  IsChecked="{Binding UseApi}"/>
+
+                        <!-- API Settings -->
+                        <Border IsVisible="{Binding UseApi}"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="10"
+                                Margin="0,10">
+                            <StackPanel>
+                                <TextBlock Text="API Settings" Classes="section-header"/>
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="API Key:" Classes="field-label"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1"
+                                             Text="{Binding ApiKey}"
+                                             PasswordChar="*"
+                                             Watermark="sk-..."/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Base URL:" Classes="field-label"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1"
+                                             Text="{Binding ApiBaseUrl}"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Model:" Classes="field-label"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1"
+                                             Text="{Binding ApiModel}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Local Model Settings -->
+                        <Border IsVisible="{Binding !UseApi}"
+                                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="10"
+                                Margin="0,10">
+                            <StackPanel>
+                                <TextBlock Text="Local Model Settings" Classes="section-header"/>
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Model:" Classes="field-label"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1"
+                                              ItemsSource="{Binding LocalModels}"
+                                              SelectedItem="{Binding LocalModel}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Device:" Classes="field-label"/>
+                                    <ComboBox Grid.Row="1" Grid.Column="1"
+                                              ItemsSource="{Binding Devices}"
+                                              SelectedItem="{Binding LocalDevice}"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Compute Type:" Classes="field-label"/>
+                                    <ComboBox Grid.Row="2" Grid.Column="1"
+                                              ItemsSource="{Binding ComputeTypes}"
+                                              SelectedItem="{Binding ComputeType}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Common Settings -->
+                        <TextBlock Text="Common Settings" Classes="section-header"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Language (ISO-639-1):" Classes="field-label"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     Text="{Binding Language}"
+                                     Watermark="Leave empty for auto-detect"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Temperature:" Classes="field-label"/>
+                            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                           Value="{Binding Temperature}"
+                                           Minimum="0" Maximum="1" Increment="0.1"
+                                           FormatString="F2"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Initial Prompt:" Classes="field-label"/>
+                            <TextBox Grid.Row="2" Grid.Column="1"
+                                     Text="{Binding InitialPrompt}"
+                                     Watermark="Optional conditioning text"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Recording Tab -->
+            <TabItem Header="Recording">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Activation" Classes="section-header"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Hotkey:" Classes="field-label"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     Text="{Binding ActivationKey}"
+                                     Watermark="e.g., ctrl+shift+space"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Recording Mode:" Classes="field-label"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1"
+                                      ItemsSource="{Binding RecordingModes}"
+                                      SelectedItem="{Binding RecordingMode}"/>
+                        </Grid>
+
+                        <TextBlock Text="Audio" Classes="section-header"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Device:" Classes="field-label"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1"
+                                      ItemsSource="{Binding AudioDevices}"
+                                      SelectedIndex="{Binding SelectedDeviceIndex}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Sample Rate (Hz):" Classes="field-label"/>
+                            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                           Value="{Binding SampleRate}"
+                                           Minimum="8000" Maximum="48000" Increment="1000"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Silence Duration (ms):" Classes="field-label"/>
+                            <NumericUpDown Grid.Row="2" Grid.Column="1"
+                                           Value="{Binding SilenceDuration}"
+                                           Minimum="100" Maximum="5000" Increment="100"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Min Duration (ms):" Classes="field-label"/>
+                            <NumericUpDown Grid.Row="3" Grid.Column="1"
+                                           Value="{Binding MinDuration}"
+                                           Minimum="0" Maximum="5000" Increment="50"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Post-Processing Tab -->
+            <TabItem Header="Post-Processing">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Text Processing" Classes="section-header"/>
+                        <CheckBox Content="Remove trailing period"
+                                  IsChecked="{Binding RemoveTrailingPeriod}"/>
+                        <CheckBox Content="Add trailing space"
+                                  IsChecked="{Binding AddTrailingSpace}"/>
+                        <CheckBox Content="Convert to lowercase"
+                                  IsChecked="{Binding RemoveCapitalization}"/>
+
+                        <TextBlock Text="Input Simulation" Classes="section-header"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Method:" Classes="field-label"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1"
+                                      ItemsSource="{Binding InputMethods}"
+                                      SelectedItem="{Binding InputMethod}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Key Press Delay (s):" Classes="field-label"/>
+                            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                           Value="{Binding WritingKeyPressDelay}"
+                                           Minimum="0" Maximum="0.1" Increment="0.001"
+                                           FormatString="F3"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Misc Tab -->
+            <TabItem Header="Misc">
+                <ScrollViewer>
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Output" Classes="section-header"/>
+                        <CheckBox Content="Print to terminal"
+                                  IsChecked="{Binding PrintToTerminal}"/>
+                        <CheckBox Content="Play sound on completion"
+                                  IsChecked="{Binding NoiseOnCompletion}"/>
+
+                        <TextBlock Text="Window" Classes="section-header"/>
+                        <CheckBox Content="Hide status window"
+                                  IsChecked="{Binding HideStatusWindow}"/>
+                        <CheckBox Content="Start minimized"
+                                  IsChecked="{Binding StartMinimized}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="10">
+            <Button Content="Reset to Defaults"
+                    Command="{Binding ResetToDefaultsCommand}"
+                    Margin="5"/>
+            <Button Content="Save"
+                    Command="{Binding SaveCommand}"
+                    Margin="5"/>
+            <Button Content="Close"
+                    Click="OnCloseClick"
+                    Margin="5"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WhisperWriter.UI.ViewModels"
+        x:Class="WhisperWriter.UI.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="WhisperWriter"
+        Width="400"
+        Height="300"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.header">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,10,0,20"/>
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,10"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="WhisperWriter"
+                   Classes="header"/>
+
+        <!-- Main Content -->
+        <StackPanel Grid.Row="1"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center">
+
+            <!-- Status Display -->
+            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="20"
+                    Margin="10">
+                <StackPanel>
+                    <TextBlock Text="{Binding StatusText}"
+                               Classes="status"
+                               HorizontalAlignment="Center"/>
+
+                    <TextBlock Text="{Binding ActivationKeyDisplay, StringFormat='Press {0} to start'}"
+                               FontSize="12"
+                               Opacity="0.7"
+                               HorizontalAlignment="Center"
+                               Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Last Transcription -->
+            <TextBlock Text="{Binding LastTranscription}"
+                       TextWrapping="Wrap"
+                       MaxWidth="350"
+                       Margin="10"
+                       Opacity="0.8"
+                       IsVisible="{Binding LastTranscription, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,20">
+
+            <Button Content="Settings"
+                    Command="{Binding OpenSettingsCommand}"
+                    Width="120"/>
+
+            <Button Content="Exit"
+                    Command="{Binding ExitCommand}"
+                    Width="120"/>
+        </StackPanel>
+    </Grid>
+</Window>
