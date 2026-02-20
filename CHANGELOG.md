@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Migrated from using JSON to using YAML to store configuration settings.
 - Upgraded to latest versions of `openai` and `faster-whisper`, including support for local API ([Issue #32](https://github.com/savbell/whisper-writer/issues/32)).
 
+### Fixed
+- Pinned `setuptools<81` to maintain compatibility with `webrtcvad-wheels` dependency on `pkg_resources`.
+- Made completion sound playback optional at runtime when `audioplayer` backend dependencies are unavailable.
+
 ### Removed
 - No longer using `keyboard` package to listen for key presses.
 

@@ -94,6 +94,12 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**Note:** `webrtcvad-wheels` currently depends on `pkg_resources`, which is not available in newer `setuptools` releases. If you encounter `ModuleNotFoundError: No module named 'pkg_resources'`, install a compatible version:
+
+```bash
+pip install "setuptools<81"
+```
+
 #### 4. Run the Python code:
 
 ```

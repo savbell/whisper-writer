@@ -1,7 +1,10 @@
 import os
 import sys
 import time
-from audioplayer import AudioPlayer
+try:
+    from audioplayer import AudioPlayer
+except ImportError:
+    AudioPlayer = None
 from pynput.keyboard import Controller
 from PyQt5.QtCore import QObject, QProcess
 from PyQt5.QtGui import QIcon
@@ -168,7 +171,7 @@ class WhisperWriterApp(QObject):
         """
         self.input_simulator.typewrite(result)
 
-        if ConfigManager.get_config_value('misc', 'noise_on_completion'):
+        if ConfigManager.get_config_value('misc', 'noise_on_completion') and AudioPlayer is not None:
             AudioPlayer(os.path.join('assets', 'beep.wav')).play(block=True)
 
         if ConfigManager.get_config_value('recording_options', 'recording_mode') == 'continuous':
