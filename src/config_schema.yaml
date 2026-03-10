@@ -90,6 +90,10 @@ recording_options:
     value: ctrl+shift+space
     type: str
     description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
+  repaste_key:
+    value: ctrl+shift+v
+    type: str
+    description: "The keyboard shortcut to re-insert the last transcribed text. Useful when text didn't paste correctly or you switched windows. Separate keys with a '+'. Leave empty to disable."
   input_backend:
     value: auto
     type: str

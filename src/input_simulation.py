@@ -2,7 +2,7 @@ import subprocess
 import os
 import signal
 import time
-from pynput.keyboard import Controller as PynputController
+from pynput.keyboard import Controller as PynputController, Key as PynputKey
 
 from utils import ConfigManager
 
@@ -50,6 +50,18 @@ class InputSimulator:
         if self.dotool_process:
             os.kill(self.dotool_process.pid, signal.SIGINT)
             self.dotool_process = None
+
+    def release_held_modifiers(self):
+        """Release any physically held modifier keys to prevent interference with typing."""
+        if hasattr(self, 'keyboard') and self.keyboard:
+            for mod_key in (PynputKey.ctrl_l, PynputKey.ctrl_r,
+                            PynputKey.shift_l, PynputKey.shift_r,
+                            PynputKey.alt_l, PynputKey.alt_r,
+                            PynputKey.cmd_l, PynputKey.cmd_r):
+                try:
+                    self.keyboard.release(mod_key)
+                except Exception:
+                    pass
 
     def typewrite(self, text):
         """
