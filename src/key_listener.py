@@ -263,13 +263,27 @@ class KeyChord:
 
     def is_active(self) -> bool:
         """Check if all keys in the chord are currently pressed."""
+        return self.would_activate(self.pressed_keys)
+
+    def would_activate(self, pressed: Set[KeyCode]) -> bool:
+        """Check if a given set of pressed keys would satisfy this chord."""
         for key in self.keys:
             if isinstance(key, frozenset):
-                if not any(k in self.pressed_keys for k in key):
+                if not any(k in pressed for k in key):
                     return False
-            elif key not in self.pressed_keys:
+            elif key not in pressed:
                 return False
         return True
+
+    def contains_key(self, key: KeyCode) -> bool:
+        """Check if a key is part of this chord's definition."""
+        for k in self.keys:
+            if isinstance(k, frozenset):
+                if key in k:
+                    return True
+            elif k == key:
+                return True
+        return False
 
 class KeyListener:
     """
@@ -322,6 +336,7 @@ class KeyListener:
             raise RuntimeError("No supported input backend found")
         self.active_backend = self.backends[0]
         self.active_backend.on_input_event = self.on_input_event
+        self._sync_chord_to_backend()
 
     def set_active_backend(self, backend_class):
         """Set a specific backend as active."""
@@ -331,9 +346,15 @@ class KeyListener:
                 self.stop()
             self.active_backend = new_backend
             self.active_backend.on_input_event = self.on_input_event
+            self._sync_chord_to_backend()
             self.start()
         else:
             raise ValueError(f"Backend {backend_class.__name__} is not available")
+
+    def _sync_chord_to_backend(self):
+        """Pass the current KeyChord to the active backend for event suppression."""
+        if self.active_backend and hasattr(self.active_backend, '_key_chord'):
+            self.active_backend._key_chord = self.key_chord
 
     def update_backend(self):
         """Update the active backend based on current configuration."""
@@ -411,6 +432,7 @@ class KeyListener:
     def update_activation_keys(self):
         """Update activation keys from the current configuration."""
         self.load_activation_keys()
+        self._sync_chord_to_backend()
 
 class EvdevBackend(InputBackend):
     """
@@ -760,19 +782,34 @@ class PynputBackend(InputBackend):
         self.keyboard = None
         self.mouse = None
         self.key_map = None
+        self._key_chord = None
+        self._pressed_vks = set()
 
     def start(self):
         """Start listening for keyboard and mouse events."""
+        import sys
+
         if self.keyboard is None or self.mouse is None:
             from pynput import keyboard, mouse
             self.keyboard = keyboard
             self.mouse = mouse
             self.key_map = self._create_key_map()
+            self._vk_map = self._build_vk_map()
 
-        self.keyboard_listener = self.keyboard.Listener(
-            on_press=self._on_keyboard_press,
-            on_release=self._on_keyboard_release
-        )
+        self._last_vk = None
+        self._pressed_vks.clear()
+
+        listener_kwargs = {
+            'on_press': self._on_keyboard_press,
+            'on_release': self._on_keyboard_release,
+        }
+        # On Windows, attach a low-level event filter (via pynput's
+        # win32_event_filter option) to capture raw virtual key codes and
+        # suppress activation-combo keys from reaching other applications.
+        if sys.platform == 'win32':
+            listener_kwargs['win32_event_filter'] = self._win32_event_filter
+
+        self.keyboard_listener = self.keyboard.Listener(**listener_kwargs)
         self.mouse_listener = self.mouse.Listener(
             on_click=self._on_mouse_click
         )
@@ -788,27 +825,121 @@ class PynputBackend(InputBackend):
             self.mouse_listener.stop()
             self.mouse_listener = None
 
-    def _translate_key_event(self, native_event) -> tuple[KeyCode, InputEvent]:
+    _MODIFIER_VKS = {
+        0xA0, 0xA1,  # VK_LSHIFT / VK_RSHIFT
+        0xA2, 0xA3,  # VK_LCONTROL / VK_RCONTROL
+        0xA4, 0xA5,  # VK_LMENU / VK_RMENU  (Alt)
+        0x5B, 0x5C,  # VK_LWIN / VK_RWIN
+    }
+
+    _WM_KEYDOWN = 0x0100
+    _WM_KEYUP = 0x0101
+    _WM_SYSKEYDOWN = 0x0104
+    _WM_SYSKEYUP = 0x0105
+
+    def _win32_event_filter(self, msg, data):
+        """Intercept raw Win32 keyboard events for two purposes:
+
+        1. Capture the virtual key code (vk) before pynput's ToUnicode() call
+           discards it (pynput creates KeyCode(char=..., vk=None) for character
+           keys, making layout-independent hotkey matching impossible).
+        2. Suppress non-modifier keys that complete the activation combo so they
+           don't produce characters in the focused application.
+
+        Suppression uses pynput's internal SuppressException (pynput 1.7.6,
+        pynput._util.win32.SystemHook).  The exception propagates through
+        pynput's hook chain and causes the Win32 hook callback to return 1,
+        which tells Windows to drop the event.  Since pynput callbacks are also
+        skipped, we manually fire on_input_event before raising.
+
+        This filter is only attached on Windows (sys.platform == 'win32').
+
+        Note: _last_vk and _pressed_vks are accessed exclusively from pynput's
+        listener thread, so no synchronization is needed.
+        """
+        vk = data.vkCode
+        self._last_vk = vk
+
+        is_down = msg in (self._WM_KEYDOWN, self._WM_SYSKEYDOWN)
+        is_up = msg in (self._WM_KEYUP, self._WM_SYSKEYUP)
+
+        if is_down:
+            self._pressed_vks.add(vk)
+        elif is_up:
+            self._pressed_vks.discard(vk)
+
+        # Suppress non-modifier key-down that completes the activation combo
+        if (is_down
+                and self._key_chord is not None
+                and self._vk_map is not None
+                and vk not in self._MODIFIER_VKS):
+            # Translate all currently pressed vks to KeyCodes
+            test_pressed = set()
+            for pvk in self._pressed_vks:
+                kc = self._vk_map.get(pvk)
+                if kc is not None:
+                    test_pressed.add(kc)
+            if test_pressed and self._key_chord.would_activate(test_pressed):
+                key_code = self._vk_map.get(vk)
+                if key_code:
+                    self.on_input_event((key_code, InputEvent.KEY_PRESS))
+                # pynput treats SuppressException as handled — listener keeps running
+                try:
+                    from pynput._util.win32 import SystemHook
+                    raise SystemHook.SuppressException()
+                except ImportError:
+                    pass
+
+        # Forward key-up for chord-constituent keys
+        if (is_up
+                and self._key_chord is not None
+                and self._vk_map is not None):
+            key_code = self._vk_map.get(vk)
+            if key_code and self._key_chord.contains_key(key_code):
+                self.on_input_event((key_code, InputEvent.KEY_RELEASE))
+
+        return True
+
+    def _translate_key_event(self, native_event) -> tuple[KeyCode | None, InputEvent | None]:
         """Translate a pynput event to our internal event representation."""
         pynput_key, is_press = native_event
-        key_code = self.key_map.get(pynput_key, KeyCode.SPACE)
+
+        # Direct lookup first
+        key_code = self.key_map.get(pynput_key)
+
+        # Fallback 1: use the raw vk captured by win32_event_filter
+        if key_code is None and self._last_vk is not None:
+            key_code = self._vk_map.get(self._last_vk)
+
+        # Fallback 2: use pynput_key.vk if available
+        if key_code is None:
+            vk = getattr(pynput_key, 'vk', None)
+            if vk is not None:
+                key_code = self._vk_map.get(vk)
+
+        if key_code is None:
+            return None, None
+
         event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
         return key_code, event_type
 
     def _on_keyboard_press(self, key):
         """Handle keyboard press events."""
-        translated_event = self._translate_key_event((key, True))
-        self.on_input_event(translated_event)
+        key_code, event_type = self._translate_key_event((key, True))
+        if key_code is not None:
+            self.on_input_event((key_code, event_type))
 
     def _on_keyboard_release(self, key):
         """Handle keyboard release events."""
-        translated_event = self._translate_key_event((key, False))
-        self.on_input_event(translated_event)
+        key_code, event_type = self._translate_key_event((key, False))
+        if key_code is not None:
+            self.on_input_event((key_code, event_type))
 
     def _on_mouse_click(self, x, y, button, pressed):
         """Handle mouse click events."""
-        translated_event = self._translate_key_event((button, pressed))
-        self.on_input_event(translated_event)
+        key_code, event_type = self._translate_key_event((button, pressed))
+        if key_code is not None:
+            self.on_input_event((key_code, event_type))
 
     def _create_key_map(self):
         """Create a mapping from pynput keys to our internal KeyCode enum."""
@@ -953,6 +1084,80 @@ class PynputBackend(InputBackend):
             self.mouse.Button.right: KeyCode.MOUSE_RIGHT,
             self.mouse.Button.middle: KeyCode.MOUSE_MIDDLE,
         }
+
+    def _build_vk_map(self):
+        """Build a virtual key code lookup map for fallback matching.
+
+        When modifier keys (Alt, Ctrl) are held, pynput reports pressed keys
+        via vk (virtual key code) rather than char.  Since from_char() keys
+        have vk=None, we must explicitly map Windows VK codes here.
+        """
+        vk_map = {}
+
+        # First, grab any entries from key_map that already have a vk
+        for pynput_key, key_code in self.key_map.items():
+            vk = getattr(pynput_key, 'vk', None)
+            if vk is not None:
+                vk_map[vk] = key_code
+
+        # Letters: VK_A (0x41) through VK_Z (0x5A)
+        letter_keys = [
+            KeyCode.A, KeyCode.B, KeyCode.C, KeyCode.D, KeyCode.E, KeyCode.F,
+            KeyCode.G, KeyCode.H, KeyCode.I, KeyCode.J, KeyCode.K, KeyCode.L,
+            KeyCode.M, KeyCode.N, KeyCode.O, KeyCode.P, KeyCode.Q, KeyCode.R,
+            KeyCode.S, KeyCode.T, KeyCode.U, KeyCode.V, KeyCode.W, KeyCode.X,
+            KeyCode.Y, KeyCode.Z,
+        ]
+        for i, kc in enumerate(letter_keys):
+            vk_map[0x41 + i] = kc
+
+        # Digits: VK_0 (0x30) through VK_9 (0x39)
+        digit_keys = [
+            KeyCode.ZERO, KeyCode.ONE, KeyCode.TWO, KeyCode.THREE, KeyCode.FOUR,
+            KeyCode.FIVE, KeyCode.SIX, KeyCode.SEVEN, KeyCode.EIGHT, KeyCode.NINE,
+        ]
+        for i, kc in enumerate(digit_keys):
+            vk_map[0x30 + i] = kc
+
+        # Function keys: VK_F1 (0x70) through VK_F24 (0x87)
+        f_keys = [
+            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F5, KeyCode.F6,
+            KeyCode.F7, KeyCode.F8, KeyCode.F9, KeyCode.F10, KeyCode.F11, KeyCode.F12,
+            KeyCode.F13, KeyCode.F14, KeyCode.F15, KeyCode.F16, KeyCode.F17, KeyCode.F18,
+            KeyCode.F19, KeyCode.F20, KeyCode.F21, KeyCode.F22, KeyCode.F23, KeyCode.F24,
+        ]
+        for i, kc in enumerate(f_keys):
+            vk_map[0x70 + i] = kc
+
+        # Modifier keys
+        vk_map[0xA0] = KeyCode.SHIFT_LEFT    # VK_LSHIFT
+        vk_map[0xA1] = KeyCode.SHIFT_RIGHT   # VK_RSHIFT
+        vk_map[0xA2] = KeyCode.CTRL_LEFT     # VK_LCONTROL
+        vk_map[0xA3] = KeyCode.CTRL_RIGHT    # VK_RCONTROL
+        vk_map[0xA4] = KeyCode.ALT_LEFT      # VK_LMENU
+        vk_map[0xA5] = KeyCode.ALT_RIGHT     # VK_RMENU
+        vk_map[0x5B] = KeyCode.META_LEFT     # VK_LWIN
+        vk_map[0x5C] = KeyCode.META_RIGHT    # VK_RWIN
+
+        # Special character keys (Windows OEM VK codes)
+        vk_map[0x20] = KeyCode.SPACE       # VK_SPACE
+        vk_map[0x0D] = KeyCode.ENTER       # VK_RETURN
+        vk_map[0x09] = KeyCode.TAB         # VK_TAB
+        vk_map[0x08] = KeyCode.BACKSPACE   # VK_BACK
+        vk_map[0x1B] = KeyCode.ESC         # VK_ESCAPE
+        vk_map[0xBC] = KeyCode.COMMA       # VK_OEM_COMMA
+        vk_map[0xBE] = KeyCode.PERIOD      # VK_OEM_PERIOD
+        vk_map[0xBD] = KeyCode.MINUS       # VK_OEM_MINUS
+        vk_map[0xBB] = KeyCode.EQUALS      # VK_OEM_PLUS (= key)
+        vk_map[0xBA] = KeyCode.SEMICOLON   # VK_OEM_1
+        vk_map[0xBF] = KeyCode.SLASH       # VK_OEM_2
+        vk_map[0xC0] = KeyCode.BACKQUOTE   # VK_OEM_3
+        vk_map[0xDB] = KeyCode.LEFT_BRACKET  # VK_OEM_4
+        vk_map[0xDC] = KeyCode.BACKSLASH   # VK_OEM_5
+        vk_map[0xDD] = KeyCode.RIGHT_BRACKET  # VK_OEM_6
+        vk_map[0xDE] = KeyCode.QUOTE       # VK_OEM_7
+
+        return vk_map
 
     def on_input_event(self, event):
         """
