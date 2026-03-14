@@ -20,20 +20,36 @@ model_options:
       type: str
       description: "A string used as an initial prompt to condition the transcription. More info: https://platform.openai.com/docs/guides/speech-to-text/prompting"
 
-  # Configuration options for the OpenAI API
+  # Configuration options for the API providers
   api:
+    provider:
+      value: openai
+      type: str
+      description: "The API provider to use. Options: 'openai' (standard OpenAI API), 'deepinfra' (DeepInfra Whisper API), 'openrouter' (OpenRouter API)."
+      options:
+        - openai
+        - deepinfra
+        - openrouter
     model:
       value: whisper-1
       type: str
-      description: "The model to use for transcription. Currently only 'whisper-1' is available."
+      description: "The model to use for transcription. For OpenAI: 'whisper-1'. For DeepInfra: 'openai/whisper-large-v3-turbo', 'openai/whisper-large-v3', etc. For OpenRouter: any audio-capable model."
     base_url:
-      value: https://api.openai.com/v1
-      type: str
-      description: "The base URL for the API. Can be changed to use a local API endpoint."
-    api_key:
       value: null
       type: str
-      description: "Your API key for the OpenAI API. Required for non-local API usage."
+      description: "The base URL for the API. Leave null for provider defaults. OpenAI: 'https://api.openai.com/v1', DeepInfra: 'https://api.deepinfra.com/v1/inference', OpenRouter: 'https://openrouter.ai/api/v1'."
+    openai_api_key:
+      value: null
+      type: str
+      description: "Your OpenAI API key (sk-xxx). Also set via OPENAI_API_KEY env var."
+    deepinfra_api_key:
+      value: null
+      type: str
+      description: "Your DeepInfra API key. Also set via DEEPINFRA_API_KEY env var."
+    openrouter_api_key:
+      value: null
+      type: str
+      description: "Your OpenRouter API key. Also set via OPENROUTER_API_KEY env var."
 
   # Configuration options for the faster-whisper model
   local:
