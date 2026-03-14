@@ -10,6 +10,22 @@ from PyQt5.QtCore import Qt, QCoreApplication, QProcess, pyqtSignal
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ui.base_window import BaseWindow
 from utils import ConfigManager
+from api_providers import PROVIDER_MODELS
+
+PROVIDER_DEFAULTS = {
+    'openai': {
+        'base_url': 'https://api.openai.com/v1',
+        'model': 'whisper-1'
+    },
+    'deepinfra': {
+        'base_url': 'https://api.deepinfra.com/v1/inference',
+        'model': 'openai/whisper-large-v3-turbo'
+    },
+    'openrouter': {
+        'base_url': 'https://openrouter.ai/api/v1',
+        'model': 'openai/whisper-large-v3-turbo'
+    }
+}
 
 load_dotenv()
 
@@ -36,6 +52,56 @@ class SettingsWindow(BaseWindow):
         if self.use_api_checkbox:
             self.use_api_checkbox.stateChanged.connect(lambda: self.toggle_api_local_options(self.use_api_checkbox.isChecked()))
             self.toggle_api_local_options(self.use_api_checkbox.isChecked())
+        
+        # Connect the provider combobox to update model options and base_url
+        self.provider_combobox = self.findChild(QComboBox, 'model_options_api_provider_input')
+        if self.provider_combobox:
+            self.provider_combobox.currentTextChanged.connect(self.update_provider_settings)
+            self.update_provider_settings(self.provider_combobox.currentText())
+    
+    def update_provider_settings(self, provider):
+        """Update the model dropdown, base_url, and API key visibility when the provider changes."""
+        model_combobox = self.findChild(QComboBox, 'model_options_api_model_input')
+        if model_combobox:
+            models = PROVIDER_MODELS.get(provider, PROVIDER_MODELS['openai'])
+            model_combobox.clear()
+            model_combobox.addItems(models)
+            default_model = PROVIDER_DEFAULTS.get(provider, {}).get('model', models[0])
+            if default_model in models:
+                model_combobox.setCurrentText(default_model)
+        
+        base_url_input = self.findChild(QLineEdit, 'model_options_api_base_url_input')
+        if base_url_input:
+            default_url = PROVIDER_DEFAULTS.get(provider, {}).get('base_url', '')
+            base_url_input.setText(default_url)
+        
+        # Show/hide API key fields based on provider
+        self.update_api_key_visibility(provider)
+    
+    def update_api_key_visibility(self, provider):
+        """Show only the API key field for the selected provider."""
+        api_key_fields = {
+            'openai': ('openai_api_key', 'OPENAI_API_KEY'),
+            'deepinfra': ('deepinfra_api_key', 'DEEPINFRA_API_KEY'),
+            'openrouter': ('openrouter_api_key', 'OPENROUTER_API_KEY')
+        }
+        
+        for prov, (key, env_var) in api_key_fields.items():
+            widget = self.findChild(QLineEdit, f'model_options_api_{key}_input')
+            label = self.findChild(QLabel, f'model_options_api_{key}_label')
+            help_button = self.findChild(QToolButton, f'model_options_api_{key}_help')
+            
+            visible = (prov == provider)
+            if widget:
+                widget.setVisible(visible)
+            if label:
+                label.setVisible(visible)
+            if help_button:
+                help_button.setVisible(visible)
+    
+    def get_provider_models(self, provider):
+        """Get the list of models for a provider."""
+        return PROVIDER_MODELS.get(provider, PROVIDER_MODELS['openai'])
 
     def create_tabs(self):
         """Create tabs for each category in the schema."""
@@ -132,10 +198,20 @@ class SettingsWindow(BaseWindow):
         return widget
 
     def create_line_edit(self, value, key=None):
-        widget = QLineEdit(value)
-        if key == 'api_key':
+        widget = QLineEdit(value if value else '')
+        
+        # Handle API key fields - use password mode and load from env
+        api_key_env_map = {
+            'openai_api_key': 'OPENAI_API_KEY',
+            'deepinfra_api_key': 'DEEPINFRA_API_KEY',
+            'openrouter_api_key': 'OPENROUTER_API_KEY'
+        }
+        
+        if key in api_key_env_map:
             widget.setEchoMode(QLineEdit.Password)
-            widget.setText(os.getenv('OPENAI_API_KEY') or value)
+            env_value = os.getenv(api_key_env_map[key])
+            if env_value:
+                widget.setText(env_value)
         elif key == 'model_path':
             layout = QHBoxLayout()
             layout.addWidget(widget)
@@ -176,13 +252,33 @@ class SettingsWindow(BaseWindow):
         """Save the settings to the config file and .env file."""
         self.iterate_settings(self.save_setting)
 
-        # Save the API key to the .env file
-        api_key = ConfigManager.get_config_value('model_options', 'api', 'api_key') or ''
-        set_key('.env', 'OPENAI_API_KEY', api_key)
-        os.environ['OPENAI_API_KEY'] = api_key
-
-        # Remove the API key from the config
-        ConfigManager.set_config_value(None, 'model_options', 'api', 'api_key')
+        # Save API keys to .env file and remove from config
+        api_key_map = {
+            'openai_api_key': 'OPENAI_API_KEY',
+            'deepinfra_api_key': 'DEEPINFRA_API_KEY',
+            'openrouter_api_key': 'OPENROUTER_API_KEY'
+        }
+        
+        # Also check for legacy api_key field and migrate it
+        legacy_api_key = ConfigManager.get_config_value('model_options', 'api', 'api_key')
+        if legacy_api_key:
+            # Migrate legacy api_key to the current provider's key
+            current_provider = ConfigManager.get_config_value('model_options', 'api', 'provider') or 'openai'
+            provider_env_map = {
+                'openai': 'OPENAI_API_KEY',
+                'deepinfra': 'DEEPINFRA_API_KEY',
+                'openrouter': 'OPENROUTER_API_KEY'
+            }
+            env_var = provider_env_map.get(current_provider, 'OPENAI_API_KEY')
+            set_key('.env', env_var, legacy_api_key)
+            os.environ[env_var] = legacy_api_key
+            ConfigManager.set_config_value(None, 'model_options', 'api', 'api_key')
+        
+        for config_key, env_var in api_key_map.items():
+            api_key = ConfigManager.get_config_value('model_options', 'api', config_key) or ''
+            set_key('.env', env_var, api_key)
+            os.environ[env_var] = api_key
+            ConfigManager.set_config_value(None, 'model_options', 'api', config_key)
 
         ConfigManager.save_config()
         QMessageBox.information(self, 'Settings Saved', 'Settings have been saved. The application will now restart.')

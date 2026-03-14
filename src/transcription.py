@@ -3,9 +3,9 @@ import os
 import numpy as np
 import soundfile as sf
 from faster_whisper import WhisperModel
-from openai import OpenAI
 
 from utils import ConfigManager
+from api_providers import get_provider
 
 def create_local_model():
     """
@@ -65,28 +65,30 @@ def transcribe_local(audio_data, local_model=None):
 
 def transcribe_api(audio_data):
     """
-    Transcribe an audio file using the OpenAI API.
+    Transcribe an audio file using the configured API provider.
     """
     model_options = ConfigManager.get_config_section('model_options')
-    client = OpenAI(
-        api_key=os.getenv('OPENAI_API_KEY') or None,
-        base_url=model_options['api']['base_url'] or 'https://api.openai.com/v1'
+    api_options = model_options['api']
+    
+    provider_name = api_options.get('provider', 'openai')
+    model = api_options['model']
+    base_url = api_options.get('base_url')
+    
+    provider = get_provider(
+        provider_name=provider_name,
+        api_options=api_options,
+        base_url=base_url
     )
-
-    # Convert numpy array to WAV file
-    byte_io = io.BytesIO()
-    sample_rate = ConfigManager.get_config_section('recording_options').get('sample_rate') or 16000
-    sf.write(byte_io, audio_data, sample_rate, format='wav')
-    byte_io.seek(0)
-
-    response = client.audio.transcriptions.create(
-        model=model_options['api']['model'],
-        file=('audio.wav', byte_io, 'audio/wav'),
-        language=model_options['common']['language'],
-        prompt=model_options['common']['initial_prompt'],
-        temperature=model_options['common']['temperature'],
+    
+    transcription = provider.transcribe(
+        audio_data=audio_data,
+        model=model,
+        language=model_options['common'].get('language'),
+        prompt=model_options['common'].get('initial_prompt'),
+        temperature=model_options['common'].get('temperature', 0.0)
     )
-    return response.text
+    
+    return transcription
 
 def post_process_transcription(transcription):
     """
