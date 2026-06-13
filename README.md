@@ -116,7 +116,7 @@ WhisperWriter uses a configuration file to customize its behaviour. To set up th
 - `common`: Options common to both API and local models.
   - `language`: The language code for the transcription in [ISO-639-1 format](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes). (Default: `null`)
   - `temperature`: Controls the randomness of the transcription output. Lower values make the output more focused and deterministic. (Default: `0.0`)
-  - `initial_prompt`: A string used as an initial prompt to condition the transcription. More info: [OpenAI Prompting Guide](https://platform.openai.com/docs/guides/speech-to-text/prompting). (Default: `null`)
+  - `initial_prompt`: A string used as an initial prompt to condition the transcription. More info: [OpenAI speech-to-text guide](https://developers.openai.com/api/docs/guides/speech-to-text). (Default: `null`)
 
 - `api`: Configuration options for the OpenAI API. See the [OpenAI API documentation](https://platform.openai.com/docs/api-reference/audio/create?lang=python) for more information.
   - `model`: The model to use for transcription. Currently, only `whisper-1` is available. (Default: `whisper-1`)
