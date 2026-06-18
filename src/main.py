@@ -1,6 +1,11 @@
 import os
 import sys
 import time
+# Import faster_whisper (and thus CTranslate2's native runtime) BEFORE PyQt5.
+# On Windows + NVIDIA GPU, importing PyQt5 first causes an access violation when
+# CTranslate2 later loads the model on CUDA (conflicting OpenMP runtimes). Loading
+# CTranslate2's libraries first avoids the crash.
+import faster_whisper  # noqa: F401  (import order matters; do not move below PyQt5)
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
 from PyQt5.QtCore import QObject, QProcess
