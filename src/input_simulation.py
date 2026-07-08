@@ -1,8 +1,10 @@
 import subprocess
 import os
 import signal
+import sys
 import time
-from pynput.keyboard import Controller as PynputController
+import pyperclip
+from pynput.keyboard import Controller as PynputController, Key
 
 from utils import ConfigManager
 
@@ -31,7 +33,7 @@ class InputSimulator:
         self.input_method = ConfigManager.get_config_value('post_processing', 'input_method')
         self.dotool_process = None
 
-        if self.input_method == 'pynput':
+        if self.input_method in ('pynput', 'clipboard'):
             self.keyboard = PynputController()
         elif self.input_method == 'dotool':
             self._initialize_dotool()
@@ -61,6 +63,8 @@ class InputSimulator:
         interval = ConfigManager.get_config_value('post_processing', 'writing_key_press_delay')
         if self.input_method == 'pynput':
             self._typewrite_pynput(text, interval)
+        elif self.input_method == 'clipboard':
+            self._typewrite_clipboard(text)
         elif self.input_method == 'ydotool':
             self._typewrite_ydotool(text, interval)
         elif self.input_method == 'dotool':
@@ -78,6 +82,31 @@ class InputSimulator:
             self.keyboard.press(char)
             self.keyboard.release(char)
             time.sleep(interval)
+
+    def _typewrite_clipboard(self, text):
+        """
+        Paste text via clipboard (Ctrl+V), bypassing the IME entirely.
+        Saves and restores whatever was in the clipboard before.
+        """
+        pyperclip.copy(text)
+        time.sleep(0.05)
+        if sys.platform == 'win32':
+            # Use Win32 keybd_event with virtual key codes instead of pynput.
+            # pynput sends characters through the Unicode/IME path which can
+            # trigger IME language switching; keybd_event with VK codes bypasses that.
+            import ctypes
+            VK_CONTROL = 0x11
+            VK_V = 0x56
+            KEYEVENTF_KEYUP = 0x0002
+            ctypes.windll.user32.keybd_event(VK_CONTROL, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(VK_V, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
+            ctypes.windll.user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        else:
+            self.keyboard.press(Key.ctrl)
+            self.keyboard.press('v')
+            self.keyboard.release('v')
+            self.keyboard.release(Key.ctrl)
 
     def _typewrite_ydotool(self, text, interval):
         """
