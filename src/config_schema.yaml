@@ -148,6 +148,7 @@ post_processing:
     description: "The method to use for simulating keyboard input."
     options:
       - pynput
+      - clipboard
       - ydotool
       - dotool
 
