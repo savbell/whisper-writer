@@ -1,6 +1,27 @@
 import os
 import sys
 import time
+import glob
+
+# Add NVIDIA pip-package DLL dirs to PATH BEFORE any ctranslate2 import.
+# nvidia-cublas-cu12 etc. install DLLs under site-packages/nvidia/*/bin but
+# don't register them.  os.add_dll_directory() is insufficient because
+# ctranslate2's C++ code uses LoadLibrary which only checks PATH.
+if sys.platform == 'win32':
+    _sp = os.path.join(os.path.dirname(sys.executable), '..', 'Lib', 'site-packages')
+    _nvidia_dirs = [
+        os.path.abspath(_d)
+        for _d in glob.glob(os.path.join(_sp, 'nvidia', '*', 'bin'))
+        if os.path.isdir(_d)
+    ]
+    if _nvidia_dirs:
+        os.environ['PATH'] = os.pathsep.join(_nvidia_dirs) + os.pathsep + os.environ.get('PATH', '')
+
+# Import transcription (→ faster_whisper → av → FFmpeg/ctranslate2 DLLs) BEFORE
+# any PyQt5 import.  On Windows, av 12.x (FFmpeg 7.x) and Qt5 D3D drivers
+# conflict when Qt DLLs load first, causing a ctranslate2 CUDA access violation.
+from transcription import create_local_model
+
 from audioplayer import AudioPlayer
 from pynput.keyboard import Controller
 from PyQt5.QtCore import QObject, QProcess
@@ -12,7 +33,6 @@ from result_thread import ResultThread
 from ui.main_window import MainWindow
 from ui.settings_window import SettingsWindow
 from ui.status_window import StatusWindow
-from transcription import create_local_model
 from input_simulation import InputSimulator
 from utils import ConfigManager
 
@@ -27,6 +47,11 @@ class WhisperWriterApp(QObject):
         self.app.setWindowIcon(QIcon(os.path.join('assets', 'ww-logo.png')))
 
         ConfigManager.initialize()
+
+        self.local_model = None
+        if ConfigManager.config_file_exists():
+            model_options = ConfigManager.get_config_section('model_options')
+            self.local_model = create_local_model() if not model_options.get('use_api') else None
 
         self.settings_window = SettingsWindow()
         self.settings_window.settings_closed.connect(self.on_settings_closed)
@@ -48,9 +73,9 @@ class WhisperWriterApp(QObject):
         self.key_listener.add_callback("on_activate", self.on_activation)
         self.key_listener.add_callback("on_deactivate", self.on_deactivation)
 
-        model_options = ConfigManager.get_config_section('model_options')
-        model_path = model_options.get('local', {}).get('model_path')
-        self.local_model = create_local_model() if not model_options.get('use_api') else None
+        if self.local_model is None:
+            model_options = ConfigManager.get_config_section('model_options')
+            self.local_model = create_local_model() if not model_options.get('use_api') else None
 
         self.result_thread = None
 
