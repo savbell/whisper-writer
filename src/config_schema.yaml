@@ -90,6 +90,10 @@ recording_options:
     value: ctrl+shift+space
     type: str
     description: "The keyboard shortcut to activate the recording and transcribing process. Separate keys with a '+'."
+  repaste_key:
+    value: ctrl+shift+v
+    type: str
+    description: "The keyboard shortcut to re-insert the last transcribed text. Useful when text didn't paste correctly or you switched windows. Separate keys with a '+'. Leave empty to disable."
   input_backend:
     value: auto
     type: str
@@ -145,9 +149,10 @@ post_processing:
   input_method:
     value: pynput
     type: str
-    description: "The method to use for simulating keyboard input."
+    description: "The method to use for simulating keyboard input. Use 'clipboard' if capital letters are being dropped in applications like JetBrains IDEs."
     options:
       - pynput
+      - clipboard
       - ydotool
       - dotool
 
@@ -165,3 +170,7 @@ misc:
     value: false
     type: bool
     description: "Set to true to play a noise after the transcription has been typed out."
+  auto_start_listening:
+    value: false
+    type: bool
+    description: "Set to true to automatically start listening on launch without showing the main window."

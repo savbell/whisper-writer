@@ -262,14 +262,24 @@ class KeyChord:
         return self.is_active()
 
     def is_active(self) -> bool:
-        """Check if all keys in the chord are currently pressed."""
+        """Check if exactly the keys in the chord are currently pressed (no extra keys)."""
+        # Check that all chord keys are pressed
         for key in self.keys:
             if isinstance(key, frozenset):
                 if not any(k in self.pressed_keys for k in key):
                     return False
             elif key not in self.pressed_keys:
                 return False
-        return True
+
+        # Check that no extra keys are pressed (exact match)
+        valid_keys = set()
+        for key in self.keys:
+            if isinstance(key, frozenset):
+                valid_keys.update(key)
+            else:
+                valid_keys.add(key)
+
+        return not (self.pressed_keys - valid_keys)
 
 class KeyListener:
     """
@@ -280,12 +290,9 @@ class KeyListener:
         """Initialize the KeyListener with backends and activation keys."""
         self.backends = []
         self.active_backend = None
-        self.key_chord = None
-        self.callbacks = {
-            "on_activate": [],
-            "on_deactivate": []
-        }
-        self.load_activation_keys()
+        self.key_chords: dict[str, KeyChord] = {}
+        self.callbacks: dict[str, dict[str, list]] = {}
+        self.load_key_chords()
         self.initialize_backends()
         self.select_backend_from_config()
 
@@ -351,11 +358,25 @@ class KeyListener:
         if self.active_backend:
             self.active_backend.stop()
 
-    def load_activation_keys(self):
-        """Load activation keys from configuration."""
-        key_combination = ConfigManager.get_config_value('recording_options', 'activation_key')
-        keys = self.parse_key_combination(key_combination)
-        self.set_activation_keys(keys)
+    def load_key_chords(self):
+        """Load all key chords from configuration."""
+        # Clear stale chords (e.g. repaste disabled) while preserving callbacks
+        self.key_chords.clear()
+
+        activation_key = ConfigManager.get_config_value('recording_options', 'activation_key')
+        keys = self.parse_key_combination(activation_key)
+        self.register_chord("activation", keys)
+
+        repaste_key = ConfigManager.get_config_value('recording_options', 'repaste_key')
+        if repaste_key:
+            keys = self.parse_key_combination(repaste_key)
+            self.register_chord("repaste", keys)
+
+    def register_chord(self, name: str, keys: Set[KeyCode | frozenset[KeyCode]]):
+        """Register a named key chord."""
+        self.key_chords[name] = KeyChord(keys)
+        if name not in self.callbacks:
+            self.callbacks[name] = {"on_activate": [], "on_deactivate": []}
 
     def parse_key_combination(self, combination_string: str) -> Set[KeyCode | frozenset[KeyCode]]:
         """Parse a string representation of key combination into a set of KeyCodes."""
@@ -381,36 +402,39 @@ class KeyListener:
 
     def set_activation_keys(self, keys: Set[KeyCode]):
         """Set the activation keys for the KeyChord."""
-        self.key_chord = KeyChord(keys)
+        self.register_chord("activation", keys)
 
     def on_input_event(self, event):
-        """Handle input events and trigger callbacks if the key chord becomes active or inactive."""
-        if not self.key_chord or not self.active_backend:
+        """Handle input events and trigger callbacks if any key chord becomes active or inactive."""
+        if not self.key_chords or not self.active_backend:
             return
 
         key, event_type = event
 
-        was_active = self.key_chord.is_active()
-        is_active = self.key_chord.update(key, event_type)
+        for chord_name, chord in self.key_chords.items():
+            was_active = chord.is_active()
+            is_active = chord.update(key, event_type)
 
-        if not was_active and is_active:
-            self._trigger_callbacks("on_activate")
-        elif was_active and not is_active:
-            self._trigger_callbacks("on_deactivate")
+            if not was_active and is_active:
+                self._trigger_callbacks(chord_name, "on_activate")
+            elif was_active and not is_active:
+                self._trigger_callbacks(chord_name, "on_deactivate")
 
-    def add_callback(self, event: str, callback: Callable):
-        """Add a callback function for a specific event."""
-        if event in self.callbacks:
-            self.callbacks[event].append(callback)
+    def add_callback(self, chord_name: str, event: str, callback: Callable):
+        """Add a callback function for a specific chord and event."""
+        if chord_name not in self.callbacks:
+            self.callbacks[chord_name] = {"on_activate": [], "on_deactivate": []}
+        if event in self.callbacks[chord_name]:
+            self.callbacks[chord_name][event].append(callback)
 
-    def _trigger_callbacks(self, event: str):
-        """Trigger all callbacks associated with a specific event."""
-        for callback in self.callbacks.get(event, []):
+    def _trigger_callbacks(self, chord_name: str, event: str):
+        """Trigger all callbacks associated with a specific chord and event."""
+        for callback in self.callbacks.get(chord_name, {}).get(event, []):
             callback()
 
     def update_activation_keys(self):
-        """Update activation keys from the current configuration."""
-        self.load_activation_keys()
+        """Update all key chords from the current configuration."""
+        self.load_key_chords()
 
 class EvdevBackend(InputBackend):
     """
@@ -788,27 +812,37 @@ class PynputBackend(InputBackend):
             self.mouse_listener.stop()
             self.mouse_listener = None
 
-    def _translate_key_event(self, native_event) -> tuple[KeyCode, InputEvent]:
-        """Translate a pynput event to our internal event representation."""
+    def _translate_key_event(self, native_event) -> tuple[KeyCode, InputEvent] | None:
+        """Translate a pynput event to our internal event representation.
+
+        Returns None for unrecognized keys so they are not misinterpreted
+        (e.g. Ctrl+C producing a control character that would otherwise
+        default to SPACE and falsely trigger a Ctrl+Space activation combo).
+        """
         pynput_key, is_press = native_event
-        key_code = self.key_map.get(pynput_key, KeyCode.SPACE)
+        key_code = self.key_map.get(pynput_key)
+        if key_code is None:
+            return None
         event_type = InputEvent.KEY_PRESS if is_press else InputEvent.KEY_RELEASE
         return key_code, event_type
 
     def _on_keyboard_press(self, key):
         """Handle keyboard press events."""
         translated_event = self._translate_key_event((key, True))
-        self.on_input_event(translated_event)
+        if translated_event is not None:
+            self.on_input_event(translated_event)
 
     def _on_keyboard_release(self, key):
         """Handle keyboard release events."""
         translated_event = self._translate_key_event((key, False))
-        self.on_input_event(translated_event)
+        if translated_event is not None:
+            self.on_input_event(translated_event)
 
     def _on_mouse_click(self, x, y, button, pressed):
         """Handle mouse click events."""
         translated_event = self._translate_key_event((button, pressed))
-        self.on_input_event(translated_event)
+        if translated_event is not None:
+            self.on_input_event(translated_event)
 
     def _create_key_map(self):
         """Create a mapping from pynput keys to our internal KeyCode enum."""
