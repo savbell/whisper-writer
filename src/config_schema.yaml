@@ -150,6 +150,8 @@ post_processing:
       - pynput
       - ydotool
       - dotool
+      - wtype
+      - wl-clipboard
 
 # Miscellaneous settings
 misc:

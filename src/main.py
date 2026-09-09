@@ -28,6 +28,9 @@ class WhisperWriterApp(QObject):
 
         ConfigManager.initialize()
 
+        self.key_listener = None
+        self.input_simulator = None
+
         self.settings_window = SettingsWindow()
         self.settings_window.settings_closed.connect(self.on_settings_closed)
         self.settings_window.settings_saved.connect(self.restart_app)
