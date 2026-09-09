@@ -65,6 +65,10 @@ class InputSimulator:
             self._typewrite_ydotool(text, interval)
         elif self.input_method == 'dotool':
             self._typewrite_dotool(text, interval)
+        elif self.input_method == 'wtype':
+            self._typewrite_wtype(text)
+        elif self.input_method == 'wl-clipboard':
+            self._typewrite_wl_clipboard(text)
 
     def _typewrite_pynput(self, text, interval):
         """
@@ -92,10 +96,32 @@ class InputSimulator:
             cmd,
             "type",
             "--key-delay",
-            str(interval * 1000),
+            str(int(interval * 1000)),
             "--",
             text,
         ])
+
+    def _typewrite_wtype(self, text):
+        """
+        Simulate typing using wtype (Wayland-native).
+
+        Args:
+            text (str): The text to type.
+        """
+        run_command_or_exit_on_failure(['wtype', text])
+
+    def _typewrite_wl_clipboard(self, text):
+        """
+        Copy text to the Wayland clipboard, then paste with Ctrl+V via ydotool.
+        Works on both X11 and Wayland-native windows.
+
+        Args:
+            text (str): The text to type.
+        """
+        proc = subprocess.Popen(['wl-copy'], stdin=subprocess.PIPE)
+        proc.communicate(input=text.encode())
+        time.sleep(0.1)
+        run_command_or_exit_on_failure(['ydotool', 'key', '--key-delay', '20', 'ctrl+v'])
 
     def _typewrite_dotool(self, text, interval):
         """
